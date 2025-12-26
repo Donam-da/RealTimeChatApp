@@ -171,3 +171,24 @@ body {
     border: none; padding: 0 15px;
     cursor: pointer; font-weight: 600; font-size: 16px;
 }
+.toggle-text {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #65676b;
+}
+
+.toggle-text span {
+    color: #0084ff;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+#login-section input, #register-section input {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 24px;
+    outline: none;
+}

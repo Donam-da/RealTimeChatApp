@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
@@ -12,12 +13,21 @@
 
     <div id="username-page">
         <div class="username-page-container">
-            <h1 class="title">Chào mừng bạn!</h1>
-            <p>Vui lòng nhập tên để bắt đầu cuộc trò chuyện</p>
-            <form id="usernameForm">
-                <input type="text" id="name" placeholder="Tên của bạn..." autocomplete="off" required />
-                <button type="submit" class="accent username-submit">Vào phòng Chat</button>
-            </form>
+            <div id="login-section">
+                <h1 class="title">Đăng nhập</h1>
+                <input type="text" id="login-username" placeholder="Tài khoản" autocomplete="off" />
+                <input type="password" id="login-password" placeholder="Mật khẩu" />
+                <button onclick="login()" class="accent username-submit">Đăng nhập</button>
+                <p class="toggle-text">Chưa có tài khoản? <span onclick="showRegister()">Đăng ký ngay</span></p>
+            </div>
+
+            <div id="register-section" class="hidden">
+                <h1 class="title">Đăng ký tài khoản</h1>
+                <input type="text" id="reg-username" placeholder="Tên đăng nhập mới" autocomplete="off" />
+                <input type="password" id="reg-password" placeholder="Mật khẩu mới" />
+                <button onclick="register()" class="accent username-submit" style="background-color: #0084ff;">Tạo tài khoản</button>
+                <p class="toggle-text">Đã có tài khoản? <span onclick="showLogin()">Quay lại Đăng nhập</span></p>
+            </div>
         </div>
     </div>
 
@@ -31,7 +41,6 @@
 
         <div class="chat-container">
             <ul id="messageArea"></ul>
-            
             <form id="messageForm" name="messageForm">
                 <input type="text" id="message" placeholder="Nhập tin nhắn..." autocomplete="off"/>
                 <button type="submit">Gửi</button>
@@ -41,53 +50,84 @@
 
     <script>
         var stompClient = null;
-        var username = null; // Sẽ được gán khi người dùng nhập tên
+        var username = null; 
         var avatarUrl = "https://i.imgur.com/DY6gND0.png"; 
 
-        var usernamePage = document.querySelector('#username-page');
-        var chatPage = document.querySelector('#chat-page');
-        var usernameForm = document.querySelector('#usernameForm');
-        var messageForm = document.querySelector('#messageForm');
+        // 1. CÁC HÀM CHUYỂN ĐỔI GIAO DIỆN (Sửa lỗi đứng yên trang)
+        function showRegister() {
+            document.querySelector('#login-section').classList.add('hidden');
+            document.querySelector('#register-section').classList.remove('hidden');
+        }
 
-        // === HÀM KẾT NỐI (Chỉ chạy sau khi nhập tên) ===
-        function connect(event) {
-            username = document.querySelector('#name').value.trim();
+        function showLogin() {
+            document.querySelector('#register-section').classList.add('hidden');
+            document.querySelector('#login-section').classList.remove('hidden');
+        }
 
-            if(username) {
-                // Ẩn trang chờ, hiện trang chat
-                usernamePage.classList.add('hidden');
-                chatPage.classList.remove('hidden');
-                document.querySelector('#display-username').textContent = username;
+        // 2. HÀM ĐĂNG KÝ (Gửi dữ liệu tới AuthController)
+        function register() {
+            const u = document.querySelector('#reg-username').value.trim();
+            const p = document.querySelector('#reg-password').value.trim();
 
-                // Khởi tạo kết nối WebSocket
-                var socket = new SockJS('/ws');
-                stompClient = Stomp.over(socket);
-                stompClient.connect({}, onConnected, onError); 
-            }
-            event.preventDefault();
+            if(!u || !p) { alert("Vui lòng nhập đủ tài khoản và mật khẩu"); return; }
+
+            fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: u, password: p})
+            })
+            .then(res => res.text())
+            .then(data => {
+                alert(data);
+                if(data === "Đăng ký thành công!") showLogin();
+            });
+        }
+
+        // 3. HÀM ĐĂNG NHẬP
+        function login() {
+            const u = document.querySelector('#login-username').value.trim();
+            const p = document.querySelector('#login-password').value.trim();
+
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: u, password: p})
+            })
+            .then(res => {
+                if(res.ok) {
+                    username = u;
+                    document.querySelector('#username-page').classList.add('hidden');
+                    document.querySelector('#chat-page').classList.remove('hidden');
+                    document.querySelector('#display-username').textContent = username;
+                    startWebSocket(); // Bắt đầu kết nối chat
+                } else {
+                    alert("Sai tài khoản hoặc mật khẩu!");
+                }
+            });
+        }
+
+        // === LOGIC CHAT WEBSOCKET ===
+        function startWebSocket() {
+            var socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, onConnected, onError); 
         }
 
         function onConnected() {
-            // Đăng ký nhận tin nhắn
             stompClient.subscribe('/topic/public', onMessageReceived);
-
-            // Tải lại lịch sử chat từ MySQL
+            
+            // Tải lịch sử
             fetch('/chat/history')
-                .then(response => response.json())
-                .then(messages => {
-                    messages.forEach(msg => drawMessage(msg));
-                });
+                .then(res => res.json())
+                .then(msgs => msgs.forEach(drawMessage));
 
-            // Thông báo cho mọi người có thành viên mới
             stompClient.send("/app/chat.addUser", {}, JSON.stringify({sender: username, type: 'JOIN'}));
         }
 
         function onError(error) {
-            console.error("Lỗi kết nối: " + error);
-            alert("Không thể kết nối đến máy chủ. Vui lòng thử lại!");
+            console.error("Lỗi: " + error);
         }
 
-        // === HÀM VẼ TIN NHẮN (Fix lỗi hàng dọc & thanh cuộn) ===
         function drawMessage(message) {
             var messageArea = document.querySelector('#messageArea');
             var messageLi = document.createElement('li');
@@ -97,7 +137,7 @@
                 messageLi.textContent = message.sender + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
             } else {
                 var contentContainer = document.createElement('div');
-                contentContainer.classList.add('message-content'); // Fix lỗi hiển thị hàng dọc
+                contentContainer.classList.add('message-content');
 
                 if (message.sender === username) {
                     messageLi.classList.add('my-message-container');
@@ -107,53 +147,40 @@
                     contentContainer.appendChild(bubble);
                 } else {
                     messageLi.classList.add('other-message-container');
-                    
                     var avatar = document.createElement('img');
                     avatar.src = avatarUrl;
                     avatar.classList.add('avatar');
-
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
-                    
                     var senderName = document.createElement('div');
                     senderName.classList.add('sender-name');
                     senderName.textContent = message.sender;
-
-                    var messageContent = document.createElement('div');
-                    messageContent.textContent = message.content;
-
-                    bubble.appendChild(senderName);
-                    bubble.appendChild(messageContent);
-                    contentContainer.appendChild(avatar);
-                    contentContainer.appendChild(bubble);
+                    var text = document.createElement('div');
+                    text.textContent = message.content;
+                    bubble.append(senderName, text);
+                    contentContainer.append(avatar, bubble);
                 }
                 messageLi.appendChild(contentContainer);
             }
-
             messageArea.appendChild(messageLi);
-            // Luôn cuộn xuống tin nhắn mới nhất
             messageArea.scrollTop = messageArea.scrollHeight;
         }
 
         function onMessageReceived(payload) {
-            var message = JSON.parse(payload.body);
-            drawMessage(message);
+            drawMessage(JSON.parse(payload.body));
         }
 
         function sendMessage(event) {
-            var messageInput = document.querySelector('#message');
-            var messageContent = messageInput.value.trim();
-            if(messageContent && stompClient) {
-                var chatMessage = { sender: username, content: messageContent, type: 'CHAT' };
-                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
-                messageInput.value = '';
+            var input = document.querySelector('#message');
+            var content = input.value.trim();
+            if(content && stompClient) {
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({sender: username, content: content, type: 'CHAT'}));
+                input.value = '';
             }
             event.preventDefault();
         }
 
-        // Lắng nghe sự kiện submit
-        usernameForm.addEventListener('submit', connect, true);
-        messageForm.addEventListener('submit', sendMessage, true);
+        document.querySelector('#messageForm').addEventListener('submit', sendMessage, true);
     </script>
 </body>
 </html>
