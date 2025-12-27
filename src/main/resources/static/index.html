@@ -291,12 +291,7 @@
                     avatar.style.backgroundColor = getAvatarColor(message.sender);
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
-                    var senderName = document.createElement('div');
-                    senderName.classList.add('sender-name');
-                    senderName.textContent = message.sender;
-                    var text = document.createElement('div');
-                    text.textContent = message.content;
-                    bubble.append(senderName, text);
+                    bubble.textContent = message.content;
                     contentContainer.append(avatar, bubble);
                 }
                 messageLi.appendChild(contentContainer);
