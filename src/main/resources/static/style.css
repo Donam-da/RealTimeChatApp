@@ -311,6 +311,16 @@ body {
 
 .bubble:hover .message-time { visibility: visible; opacity: 1; }
 
+/* Dòng phân cách thời gian (Ngày tháng năm) */
+.date-separator {
+    text-align: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #8e8e8e;
+    margin: 15px 0 10px 0;
+    width: 100%;
+}
+
 .event-message {
     align-self: center; background: #e4e6eb;
     padding: 4px 12px; border-radius: 15px;

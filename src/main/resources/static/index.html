@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=1.3">
+    <link rel="stylesheet" href="style.css?v=1.5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -430,6 +430,13 @@
                 return;
             }
 
+            // Kiểm tra xem đây có phải là tin nhắn đầu tiên trong khung chat hiện tại không
+            // (Áp dụng cho cả tin nhắn mới hoặc khi load lại lịch sử sau khi xóa)
+            const existingMessages = messageArea.querySelectorAll('.message-content, .event-message');
+            if (existingMessages.length === 0) {
+                addDateSeparator(message.timestamp, partnerUsername);
+            }
+
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
                 messageLi.classList.add('event-message');
                 messageLi.textContent = message.sender + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
@@ -461,6 +468,16 @@
             }
             messageArea.appendChild(messageLi);
             messageArea.scrollTop = messageArea.scrollHeight;
+        }
+
+        function addDateSeparator(timestamp, partnerUsername) {
+            var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
+            if (!messageArea) return;
+            
+            var li = document.createElement('li');
+            li.className = 'date-separator';
+            li.textContent = formatFullDate(timestamp);
+            messageArea.appendChild(li);
         }
 
         function addSeenIcon(container, partnerUsername) {
@@ -572,6 +589,17 @@
             var hours = d.getHours().toString().padStart(2, '0');
             var minutes = d.getMinutes().toString().padStart(2, '0');
             return `${hours}:${minutes}`;
+        }
+
+        function formatFullDate(date) {
+            var d = parseDate(date);
+            if (!d) d = new Date(); // Fallback nếu không có time
+            var hours = d.getHours().toString().padStart(2, '0');
+            var minutes = d.getMinutes().toString().padStart(2, '0');
+            var day = d.getDate().toString().padStart(2, '0');
+            var month = (d.getMonth() + 1).toString().padStart(2, '0');
+            var year = d.getFullYear();
+            return `${hours}:${minutes} ${day} tháng ${month}, ${year}`;
         }
 
         function timeSince(date) {
