@@ -194,14 +194,16 @@
                 <div class="chat-window-header">
                     <div style="display: flex; align-items: center;">
                         <div style="display: flex; flex-direction: column;">
-                            <span class="chat-window-title">${partnerName}</span>
-                            <span class="chat-window-status" id="status-${partnerUsername}">Đang tải...</span>
-                        </div>
-                        <div class="dropdown">
-                            <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">&#9662;</button>
-                            <div id="dropdown-${partnerUsername}" class="dropdown-content">
-                                <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
+                            <div style="display: flex; align-items: center;">
+                                <span class="chat-window-title">${partnerName}</span>
+                                <div class="dropdown">
+                                    <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">&#9662;</button>
+                                    <div id="dropdown-${partnerUsername}" class="dropdown-content">
+                                        <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
+                                    </div>
+                                </div>
                             </div>
+                            <span class="chat-window-status" id="status-${partnerUsername}">Đang tải...</span>
                         </div>
                     </div>
                     <button class="close-chat-btn" onclick="closeChatWindow('${partnerUsername}')">&times;</button>
