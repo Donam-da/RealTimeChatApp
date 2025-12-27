@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=1.6">
+    <link rel="stylesheet" href="style.css?v=1.7">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -223,7 +223,7 @@
                 <div class="chat-window-footer">
                     <div id="typing-${partnerUsername}" class="typing-indicator"></div>
                     <form onsubmit="sendMessage(event, '${partnerUsername}')">
-                        <input type="text" placeholder="Nhập tin nhắn..." autocomplete="off" oninput="handleTyping('${partnerUsername}')"/>
+                        <textarea placeholder="Nhập tin nhắn..." rows="1" oninput="autoResize(this); handleTyping('${partnerUsername}')" onkeydown="handleEnter(event, '${partnerUsername}')"></textarea>
                         <button type="submit">Gửi</button>
                     </form>
                 </div>
@@ -548,11 +548,25 @@
             }, 3000);
         }
 
+        function autoResize(textarea) {
+            textarea.style.height = 'auto'; // Reset để tính toán lại
+            textarea.style.height = textarea.scrollHeight + 'px'; // Gán chiều cao theo nội dung
+        }
+
+        function handleEnter(event, partnerUsername) {
+            // Nếu nhấn Enter mà không giữ Shift -> Gửi tin nhắn
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage(event, partnerUsername);
+            }
+        }
+
         function sendMessage(event, partnerUsername) {
-            event.preventDefault(); // Ngăn reload trang
+            if(event.preventDefault) event.preventDefault(); // Ngăn reload trang
             
             // Tìm input trong form vừa submit
-            var input = event.target.querySelector('input');
+            var form = event.target.tagName === 'FORM' ? event.target : event.target.closest('form');
+            var input = form.querySelector('textarea');
             var content = input.value.trim();
             
             if(content && stompClient && activeChats[partnerUsername]) {
@@ -567,6 +581,7 @@
                 }));
                 
                 input.value = '';
+                input.style.height = 'auto'; // Reset chiều cao về 1 dòng
             }
         }
 
