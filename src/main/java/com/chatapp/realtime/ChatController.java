@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @RestController
@@ -55,5 +56,13 @@ public class ChatController {
     @GetMapping("/api/messages/{roomId}")
     public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId) {
         return ResponseEntity.ok(messageRepository.findByRoomId(roomId));
+    }
+
+    // API Xóa lịch sử chat của một phòng
+    @Transactional
+    @DeleteMapping("/api/messages/{roomId}")
+    public ResponseEntity<String> deleteChatHistory(@PathVariable String roomId) {
+        messageRepository.deleteByRoomId(roomId);
+        return ResponseEntity.ok("Đã xóa đoạn chat");
     }
 }

@@ -178,7 +178,15 @@
 
             chatWindow.innerHTML = `
                 <div class="chat-window-header">
-                    <span class="chat-window-title">${partnerName}</span>
+                    <div style="display: flex; align-items: center;">
+                        <span class="chat-window-title">${partnerName}</span>
+                        <div class="dropdown">
+                            <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">&#9662;</button>
+                            <div id="dropdown-${partnerUsername}" class="dropdown-content">
+                                <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
+                            </div>
+                        </div>
+                    </div>
                     <button class="close-chat-btn" onclick="closeChatWindow('${partnerUsername}')">&times;</button>
                 </div>
                 <ul class="chat-window-body" id="msg-area-${partnerUsername}"></ul>
@@ -223,6 +231,39 @@
                 const offset = 20 + (index * 340);
                 activeChats[key].element.style.right = offset + 'px';
             });
+        }
+
+        // --- DROPDOWN & DELETE CHAT ---
+        function toggleDropdown(username) {
+            document.getElementById("dropdown-" + username).classList.toggle("show");
+        }
+
+        // Đóng dropdown khi click ra ngoài
+        window.onclick = function(event) {
+            if (!event.target.matches('.dropdown-btn')) {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        function deleteChat(partnerUsername) {
+            if (!confirm("Bạn có chắc muốn xóa toàn bộ tin nhắn với người này?")) return;
+            
+            const roomId = activeChats[partnerUsername].roomId;
+            fetch('/api/messages/' + roomId, { method: 'DELETE' })
+                .then(res => {
+                    if (res.ok) {
+                        document.querySelector('#msg-area-' + partnerUsername).innerHTML = '';
+                        alert("Đã xóa đoạn chat!");
+                    } else {
+                        alert("Lỗi khi xóa chat");
+                    }
+                });
         }
 
         function loadChatHistory(roomId, partnerUsername, partnerName) {

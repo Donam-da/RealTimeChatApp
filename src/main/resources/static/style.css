@@ -176,6 +176,22 @@ body {
 }
 .close-chat-btn:hover { opacity: 0.8; }
 
+/* Dropdown Menu (Nút tam giác và menu xóa) */
+.dropdown { position: relative; display: inline-block; margin-left: 8px; }
+.dropdown-btn { background: none; border: none; color: white; cursor: pointer; font-size: 12px; padding: 0; }
+.dropdown-content {
+    display: none; position: absolute; top: 100%; left: 0;
+    background-color: #fff; min-width: 140px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 2000;
+    border-radius: 4px; overflow: hidden;
+}
+.dropdown-content a {
+    color: #333; padding: 10px 15px; text-decoration: none;
+    display: block; font-size: 13px; text-align: left;
+}
+.dropdown-content a:hover { background-color: #f5f5f5; color: #d32f2f; }
+.show { display: block; }
+
 .chat-window-body {
     flex-grow: 1;
     padding: 10px;
