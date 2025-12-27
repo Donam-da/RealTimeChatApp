@@ -91,13 +91,13 @@ body {
     overflow: hidden;
 }
 
-/* 4. Chat Header (Có thêm Menu ba chấm) */
+/* 4. Chat Header */
 .chat-header {
     background: #ffffff;
     padding: 15px 20px;
     border-bottom: 1px solid #f0f0f0;
     display: flex;
-    justify-content: space-between; /* Đẩy tên sang trái, nút sang phải */
+    justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
 }
@@ -109,45 +109,6 @@ body {
 
 .chat-header .title { font-size: 18px; font-weight: 600; color: #1c1e21; }
 .chat-header .status { font-size: 12px; color: #4CAF50; font-weight: 500; }
-
-/* Menu Menu ba chấm & Dropdown */
-.header-menu { position: relative; }
-
-.menu-btn {
-    background: none;
-    border: none;
-    font-size: 22px;
-    cursor: pointer;
-    color: #65676b;
-    padding: 5px 10px;
-    border-radius: 50%;
-}
-.menu-btn:hover { background-color: #f0f2f5; }
-
-.dropdown-menu {
-    position: absolute;
-    right: 0;
-    top: 40px;
-    background: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    border-radius: 8px;
-    z-index: 100;
-    min-width: 160px;
-    overflow: hidden;
-}
-
-.delete-btn {
-    width: 100%;
-    padding: 12px 15px;
-    border: none;
-    background: none;
-    color: #f02849; /* Màu đỏ cảnh báo */
-    text-align: left;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-}
-.delete-btn:hover { background-color: #f2f2f2; }
 
 /* 5. Vùng hiển thị tin nhắn (Scrollable) */
 .chat-container {
@@ -181,7 +142,11 @@ body {
 
 .avatar {
     width: 32px; height: 32px;
-    border-radius: 50%; margin-right: 8px; flex-shrink: 0;
+    border-radius: 50%; margin-right: 8px; flex-shrink: 0; 
+    background-color: #ff9800; /* Màu mặc định */
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 14px; text-transform: uppercase;
 }
 
 .bubble {

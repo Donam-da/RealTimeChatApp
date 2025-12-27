@@ -3,6 +3,7 @@ package com.chatapp.realtime;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -24,9 +25,10 @@ public class AuthController {
     // API Đăng nhập
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user) {
-        return userRepository.findByUsername(user.getUsername())
-                .filter(dbUser -> dbUser.getPassword().equals(user.getPassword()))
-                .map(dbUser -> ResponseEntity.ok("Đăng nhập thành công!"))
-                .orElse(ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu!"));
+        Optional<User> dbUser = userRepository.findByUsername(user.getUsername());
+        if (dbUser.isPresent() && dbUser.get().getPassword().equals(user.getPassword())) {
+            return ResponseEntity.ok(dbUser.get());
+        }
+        return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu!");
     }
 }
