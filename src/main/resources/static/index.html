@@ -32,12 +32,18 @@
     </div>
 
     <div id="chat-page" class="hidden">
-        <div class="chat-header">
-            <div class="header-info">
-                <h2 class="title" id="display-username">User Name</h2>
-                <span class="status">Đang hoạt động</span>
-            </div>
-        </div>
+		<div class="chat-header">
+		    <div class="header-info">
+		        <h2 class="title" id="display-username">User Name</h2>
+		        <span class="status">Đang hoạt động</span>
+		    </div>
+		    <div class="header-menu">
+		        <button class="menu-btn" onclick="toggleMenu()">&#8942;</button>
+		        <div id="chat-menu" class="dropdown-menu hidden">
+		            <button onclick="clearChatHistory()" class="delete-btn">Xóa đoạn chat</button>
+		        </div>
+		    </div>
+		</div>
 
         <div class="chat-container">
             <ul id="messageArea"></ul>
@@ -179,6 +185,30 @@
             }
             event.preventDefault();
         }
+		// Đóng/mở menu ba chấm
+		function toggleMenu() {
+		    document.querySelector('#chat-menu').classList.toggle('hidden');
+		}
+
+		// Gọi API xóa lịch sử
+		function clearChatHistory() {
+		    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ tin nhắn?")) {
+		        fetch('/chat/clear', { method: 'DELETE' })
+		            .then(res => {
+		                if (res.ok) {
+		                    document.querySelector('#messageArea').innerHTML = ''; // Xóa tin nhắn trên màn hình
+		                    toggleMenu(); // Đóng menu
+		                }
+		            });
+		    }
+		}
+
+		// Đóng menu khi nhấn ra ngoài
+		window.onclick = function(e) {
+		    if (!e.target.matches('.menu-btn')) {
+		        document.querySelector('#chat-menu').classList.add('hidden');
+		    }
+		}
 
         document.querySelector('#messageForm').addEventListener('submit', sendMessage, true);
     </script>

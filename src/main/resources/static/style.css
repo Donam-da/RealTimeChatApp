@@ -3,18 +3,18 @@
 
 body {
     font-family: 'Roboto', sans-serif;
-    background-color: #f0f2f5; /* Nền xám nhạt hiện đại */
+    background-color: #f0f2f5; 
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden; /* Ngăn cuộn toàn trang web */
 }
 
 /* Lớp dùng để ẩn/hiện trang */
 .hidden { display: none !important; }
 
-/* 2. Style cho Trang Chờ (Username Page) */
+/* 2. Style cho Trang Chờ (Login/Register) */
 #username-page {
     display: flex;
     justify-content: center;
@@ -33,22 +33,16 @@ body {
     max-width: 400px;
 }
 
-.username-page-container h1 {
-    margin-bottom: 10px;
+#login-section h1, #register-section h1 {
+    margin-bottom: 20px;
     font-size: 24px;
     color: #1c1e21;
 }
 
-.username-page-container p {
-    color: #65676b;
-    font-size: 14px;
-    margin-bottom: 20px;
-}
-
-#name {
+#login-section input, #register-section input {
     width: 100%;
     padding: 12px 20px;
-    margin-bottom: 20px;
+    margin: 8px 0;
     border: 1px solid #ddd;
     border-radius: 24px;
     outline: none;
@@ -57,7 +51,7 @@ body {
 
 .username-submit {
     width: 100%;
-    background: #45bd62; /* Màu xanh lá thân thiện */
+    background: #45bd62; 
     color: #fff;
     border: none;
     padding: 12px;
@@ -65,10 +59,24 @@ body {
     cursor: pointer;
     font-weight: bold;
     font-size: 16px;
+    margin-top: 10px;
     transition: background 0.2s;
 }
 
 .username-submit:hover { background: #3da855; }
+
+.toggle-text {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #65676b;
+}
+
+.toggle-text span {
+    color: #0084ff;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: underline;
+}
 
 /* 3. Style cho Trang Chat Chính */
 #chat-page {
@@ -83,40 +91,87 @@ body {
     overflow: hidden;
 }
 
+/* 4. Chat Header (Có thêm Menu ba chấm) */
 .chat-header {
     background: #ffffff;
     padding: 15px 20px;
     border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between; /* Đẩy tên sang trái, nút sang phải */
+    align-items: center;
     flex-shrink: 0;
+}
+
+.header-info {
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-header .title { font-size: 18px; font-weight: 600; color: #1c1e21; }
 .chat-header .status { font-size: 12px; color: #4CAF50; font-weight: 500; }
 
-/* 4. Vùng hiển thị tin nhắn (Scrollable) */
+/* Menu Menu ba chấm & Dropdown */
+.header-menu { position: relative; }
+
+.menu-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #65676b;
+    padding: 5px 10px;
+    border-radius: 50%;
+}
+.menu-btn:hover { background-color: #f0f2f5; }
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    z-index: 100;
+    min-width: 160px;
+    overflow: hidden;
+}
+
+.delete-btn {
+    width: 100%;
+    padding: 12px 15px;
+    border: none;
+    background: none;
+    color: #f02849; /* Màu đỏ cảnh báo */
+    text-align: left;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+}
+.delete-btn:hover { background-color: #f2f2f2; }
+
+/* 5. Vùng hiển thị tin nhắn (Scrollable) */
 .chat-container {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     background: #f9f9f9;
-    min-height: 0;
+    min-height: 0; /* Quan trọng để kích hoạt thanh cuộn */
 }
 
 #messageArea {
     flex-grow: 1;
     list-style-type: none;
     padding: 20px;
-    overflow-y: auto; /* Kích hoạt thanh cuộn khi tin nhắn nhiều */
+    overflow-y: auto; 
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Tùy chỉnh thanh cuộn đẹp mắt */
 #messageArea::-webkit-scrollbar { width: 4px; }
 #messageArea::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
 
-/* 5. Bong bóng chat (Bubbles) */
+/* 6. Bong bóng chat (Bubbles) */
 #messageArea li { display: flex; width: 100%; }
 
 .my-message-container { justify-content: flex-end; }
@@ -136,12 +191,17 @@ body {
     line-height: 1.4;
     word-wrap: break-word;
     white-space: pre-wrap;
-    width: fit-content; /* Sửa lỗi tin nhắn bị hiển thị hàng dọc */
+    width: fit-content; /* Sửa lỗi hiển thị hàng dọc */
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .my-bubble { background-color: #45bd62; color: white; border-bottom-right-radius: 4px; }
-.other-bubble { background-color: #ffffff; color: #050505; border-bottom-left-radius: 4px; border: 1px solid #e4e6eb; }
+.other-bubble { 
+    background-color: #ffffff; 
+    color: #050505; 
+    border-bottom-left-radius: 4px; 
+    border: 1px solid #e4e6eb; 
+}
 
 .sender-name { font-size: 11px; color: #65676b; margin-bottom: 4px; margin-left: 5px; }
 
@@ -151,7 +211,7 @@ body {
     font-size: 12px; color: #65676b; margin: 10px 0;
 }
 
-/* 6. Thanh nhập tin nhắn (Input Bar) */
+/* 7. Thanh nhập tin nhắn (Input Bar) */
 #messageForm {
     display: flex;
     padding: 15px;
@@ -171,24 +231,4 @@ body {
     border: none; padding: 0 15px;
     cursor: pointer; font-weight: 600; font-size: 16px;
 }
-.toggle-text {
-    margin-top: 15px;
-    font-size: 14px;
-    color: #65676b;
-}
-
-.toggle-text span {
-    color: #0084ff;
-    cursor: pointer;
-    font-weight: bold;
-    text-decoration: underline;
-}
-
-#login-section input, #register-section input {
-    width: 100%;
-    padding: 12px 20px;
-    margin: 8px 0;
-    border: 1px solid #ddd;
-    border-radius: 24px;
-    outline: none;
-}
+#messageForm button:hover { color: #0073e6; }
