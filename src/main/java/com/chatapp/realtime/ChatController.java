@@ -45,6 +45,12 @@ public class ChatController {
         messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
     }
 
+    // Xử lý thông báo "Đang soạn tin"
+    @MessageMapping("/chat.typing")
+    public void typing(@Payload ChatMessage chatMessage) {
+        messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
+    }
+
     // API lấy lịch sử tin nhắn của một phòng cụ thể
     @GetMapping("/api/messages/{roomId}")
     public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId) {

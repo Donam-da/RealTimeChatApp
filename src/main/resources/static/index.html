@@ -183,8 +183,9 @@
                 </div>
                 <ul class="chat-window-body" id="msg-area-${partnerUsername}"></ul>
                 <div class="chat-window-footer">
+                    <div id="typing-${partnerUsername}" class="typing-indicator"></div>
                     <form onsubmit="sendMessage(event, '${partnerUsername}')">
-                        <input type="text" placeholder="Nhập tin nhắn..." autocomplete="off"/>
+                        <input type="text" placeholder="Nhập tin nhắn..." autocomplete="off" oninput="handleTyping('${partnerUsername}')"/>
                         <button type="submit">Gửi</button>
                     </form>
                 </div>
@@ -196,7 +197,8 @@
             activeChats[partnerUsername] = {
                 element: chatWindow,
                 roomId: roomId,
-                subscription: null
+                subscription: null,
+                typingTimeout: null // Để quản lý thời gian ẩn thông báo
             };
         }
 
@@ -260,6 +262,10 @@
                 if (msg.type === 'CHAT' && msg.sender !== username) {
                     sendReadReceipt(partnerUsername, roomId);
                 }
+                // Xử lý sự kiện TYPING
+                if (msg.type === 'TYPING' && msg.sender !== username) {
+                    showTypingIndicator(partnerUsername, msg.sender);
+                }
             });
             
             if (activeChats[partnerUsername]) {
@@ -301,6 +307,11 @@
                     }
                 }
                 return; // Không vẽ tin nhắn, chỉ xử lý icon
+            }
+
+            // Xử lý sự kiện TYPING (Không vẽ tin nhắn)
+            if (message.type === 'TYPING') {
+                return;
             }
 
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
@@ -348,6 +359,40 @@
                     roomId: roomId
                 }));
             }
+        }
+
+        // --- LOGIC ĐANG SOẠN TIN (TYPING) ---
+        var lastTypingTime = 0;
+        function handleTyping(partnerUsername) {
+            const now = Date.now();
+            // Chỉ gửi sự kiện mỗi 2 giây để tránh spam server
+            if (now - lastTypingTime > 2000 && stompClient && activeChats[partnerUsername]) {
+                const roomId = activeChats[partnerUsername].roomId;
+                stompClient.send("/app/chat.typing", {}, JSON.stringify({
+                    sender: username,
+                    type: 'TYPING',
+                    roomId: roomId
+                }));
+                lastTypingTime = now;
+            }
+        }
+
+        function showTypingIndicator(partnerUsername, senderName) {
+            const indicator = document.getElementById(`typing-${partnerUsername}`);
+            if (!indicator) return;
+
+            // Lấy từ cuối cùng của tên hiển thị
+            const nameParts = senderName.trim().split(/\s+/);
+            const lastName = nameParts[nameParts.length - 1];
+
+            indicator.textContent = `... ${lastName} đang soạn tin nhắn`;
+            indicator.classList.add('visible');
+
+            // Xóa timeout cũ và đặt timeout mới để ẩn thông báo sau 3 giây
+            if (activeChats[partnerUsername].typingTimeout) clearTimeout(activeChats[partnerUsername].typingTimeout);
+            activeChats[partnerUsername].typingTimeout = setTimeout(() => {
+                indicator.classList.remove('visible');
+            }, 3000);
         }
 
         function sendMessage(event, partnerUsername) {
