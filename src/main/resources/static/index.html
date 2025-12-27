@@ -478,12 +478,13 @@
             }
         }
 
-        function showTypingIndicator(partnerUsername, senderName) {
+        function showTypingIndicator(partnerUsername, senderUsername) {
             const indicator = document.getElementById(`typing-${partnerUsername}`);
             if (!indicator) return;
 
-            // Lấy từ cuối cùng của tên hiển thị
-            const nameParts = senderName.trim().split(/\s+/);
+            // Lấy tên hiển thị thực tế từ username, sau đó mới lấy tên cuối
+            const displayName = getDisplayName(senderUsername);
+            const nameParts = displayName.trim().split(/\s+/);
             const lastName = nameParts[nameParts.length - 1];
 
             indicator.textContent = `... ${lastName} đang soạn tin nhắn`;
