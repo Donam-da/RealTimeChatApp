@@ -110,6 +110,27 @@ body {
 .chat-header .title { font-size: 18px; font-weight: 600; color: #1c1e21; }
 .chat-header .status { font-size: 12px; color: #4CAF50; font-weight: 500; }
 
+.logout-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 8px 16px;
+    background-color: #ffffff; /* Đổi thành màu trắng để nổi trên nền xám */
+    color: #1c1e21;
+    border: none;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Thêm bóng đổ nhẹ */
+}
+.logout-btn:hover {
+    background-color: #e4e6eb;
+    color: #d32f2f; /* Chuyển chữ sang màu đỏ khi di chuột vào */
+}
+
 /* 5. Vùng hiển thị tin nhắn (Scrollable) */
 .chat-container {
     flex-grow: 1;

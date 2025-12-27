@@ -11,6 +11,9 @@
 </head>
 <body>
 
+    <!-- Nút đăng xuất toàn cục -->
+    <button onclick="logout()" id="logout-btn" class="logout-btn hidden">Đăng xuất</button>
+
     <div id="username-page">
         <div class="username-page-container">
             <div id="login-section">
@@ -98,9 +101,21 @@
                 username = data.displayName || data.username;
                 document.querySelector('#username-page').classList.add('hidden');
                 document.querySelector('#chat-page').classList.remove('hidden');
+                document.querySelector('#logout-btn').classList.remove('hidden'); // Hiện nút đăng xuất
                 document.querySelector('#display-username').textContent = username;
                 startWebSocket();
             }).catch(err => alert("Sai tài khoản hoặc mật khẩu!"));
+        }
+
+        function logout() {
+            if (stompClient) {
+                stompClient.disconnect(); // Ngắt kết nối WebSocket
+            }
+            username = null;
+            document.querySelector('#chat-page').classList.add('hidden');
+            document.querySelector('#logout-btn').classList.add('hidden'); // Ẩn nút đăng xuất
+            document.querySelector('#username-page').classList.remove('hidden');
+            document.querySelector('#messageArea').innerHTML = ''; // Xóa tin nhắn cũ trên giao diện
         }
 
         // WEBSOCKET LOGIC
