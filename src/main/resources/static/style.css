@@ -268,6 +268,7 @@ body {
     white-space: pre-wrap;
     width: fit-content; /* Sửa lỗi hiển thị hàng dọc */
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    position: relative; /* Để định vị tooltip thời gian */
 }
 
 .my-bubble { background-color: #45bd62; color: white; border-bottom-right-radius: 4px; }
@@ -279,6 +280,36 @@ body {
 }
 
 .sender-name { font-size: 11px; color: #65676b; margin-bottom: 4px; margin-left: 5px; }
+
+/* Tooltip hiển thị thời gian */
+.message-time {
+    visibility: hidden;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 4px 8px;
+    position: absolute;
+    z-index: 10;
+    bottom: 100%; /* Hiển thị phía trên bong bóng */
+    left: 50%;
+    transform: translateX(-50%); /* Căn giữa */
+    margin-bottom: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none; /* Không làm ảnh hưởng khi di chuột */
+}
+
+/* Mũi tên nhỏ dưới tooltip */
+.message-time::after {
+    content: ""; position: absolute; top: 100%; left: 50%; margin-left: -4px;
+    border-width: 4px; border-style: solid;
+    border-color: rgba(0, 0, 0, 0.75) transparent transparent transparent;
+}
+
+.bubble:hover .message-time { visibility: visible; opacity: 1; }
 
 .event-message {
     align-self: center; background: #e4e6eb;
