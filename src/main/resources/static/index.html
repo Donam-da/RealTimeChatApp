@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=1.5">
+    <link rel="stylesheet" href="style.css?v=1.6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -430,12 +430,26 @@
                 return;
             }
 
-            // Kiểm tra xem đây có phải là tin nhắn đầu tiên trong khung chat hiện tại không
-            // (Áp dụng cho cả tin nhắn mới hoặc khi load lại lịch sử sau khi xóa)
-            const existingMessages = messageArea.querySelectorAll('.message-content, .event-message');
-            if (existingMessages.length === 0) {
+            // --- XỬ LÝ DÒNG THỜI GIAN (SEPARATOR) ---
+            var currentMsgDate = parseDate(message.timestamp);
+            var currentTimestamp = currentMsgDate ? currentMsgDate.getTime() : Date.now();
+            
+            // Tìm tin nhắn gần nhất trước đó (có attribute data-timestamp)
+            const previousMsgs = messageArea.querySelectorAll('li[data-timestamp]');
+            
+            if (previousMsgs.length === 0) {
                 addDateSeparator(message.timestamp, partnerUsername);
+            } else {
+                const lastMsg = previousMsgs[previousMsgs.length - 1];
+                const lastTimestamp = parseInt(lastMsg.getAttribute('data-timestamp'));
+                // Nếu cách nhau quá 5 phút (300000 ms) thì hiện lại dòng thời gian
+                if (currentTimestamp - lastTimestamp > 5 * 60 * 1000) {
+                    addDateSeparator(message.timestamp, partnerUsername);
+                }
             }
+            
+            // Lưu timestamp vào thẻ li để dùng cho lần so sánh tiếp theo
+            messageLi.setAttribute('data-timestamp', currentTimestamp);
 
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
                 messageLi.classList.add('event-message');
