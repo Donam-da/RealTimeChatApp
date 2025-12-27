@@ -43,29 +43,10 @@
         </div>
     </div>
 
-    <div id="chat-page" class="hidden">
-		<div class="chat-header">
-		    <div class="header-info">
-                <button onclick="backToUserList()" class="back-btn">&#8592;</button>
-		        <h2 class="title" id="display-username">nam523181</h2>
-		        <span class="status">Đang hoạt động</span>
-		    </div>
-		</div>
-
-        <div class="chat-container">
-            <ul id="messageArea"></ul>
-            <form id="messageForm" name="messageForm">
-                <input type="text" id="message" placeholder="Nhập tin nhắn..." autocomplete="off"/>
-                <button type="submit">Gửi</button>
-            </form>
-        </div>
-    </div>
-
     <script>
         var stompClient = null;
         var username = null; 
-        var currentChatPartner = null; // Người đang chat cùng
-        var currentSubscription = null; // Để quản lý việc hủy đăng ký topic cũ
+        var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
 
         // CHUYỂN ĐỔI GIAO DIỆN
@@ -123,8 +104,9 @@
                 stompClient.disconnect(); // Ngắt kết nối WebSocket
             }
             username = null;
-            currentChatPartner = null;
-            document.querySelector('#chat-page').classList.add('hidden');
+            // Xóa tất cả cửa sổ chat
+            Object.keys(activeChats).forEach(u => closeChatWindow(u));
+            activeChats = {};
             document.querySelector('#user-list-page').classList.add('hidden');
             document.querySelector('#logout-btn').classList.add('hidden'); // Ẩn nút đăng xuất
             document.querySelector('#username-page').classList.remove('hidden');
@@ -165,35 +147,87 @@
         }
 
         function startChat(partnerUser) {
-            currentChatPartner = partnerUser;
+            const partnerUsername = partnerUser.username;
             const partnerName = partnerUser.displayName || partnerUser.username;
             
-            document.querySelector('#user-list-page').classList.add('hidden');
-            document.querySelector('#chat-page').classList.remove('hidden');
-            document.querySelector('#display-username').textContent = partnerName;
-            document.querySelector('#messageArea').innerHTML = ''; // Xóa tin nhắn cũ
-            
-            // Tính toán Room ID (giống logic gửi tin nhắn)
-            const myName = document.querySelector('#login-username').value.trim();
-            const roomId = [myName, partnerUser.username].sort().join('_');
+            // Nếu đã mở rồi thì không làm gì (hoặc có thể focus vào nó)
+            if (activeChats[partnerUsername]) return;
 
-            subscribeToRoom();
-            loadChatHistory(roomId); // Tải lịch sử chat
+            // Tính toán Room ID
+            const myName = document.querySelector('#login-username').value.trim();
+            const roomId = [myName, partnerUsername].sort().join('_');
+
+            createChatWindowUI(partnerUser, roomId);
+            subscribeToRoom(partnerUsername, roomId);
+            loadChatHistory(roomId, partnerUsername);
         }
 
-        function loadChatHistory(roomId) {
+        function createChatWindowUI(partnerUser, roomId) {
+            const partnerUsername = partnerUser.username;
+            const partnerName = partnerUser.displayName || partnerUser.username;
+
+            // Tạo khung chat
+            const chatWindow = document.createElement('div');
+            chatWindow.className = 'chat-window';
+            chatWindow.id = 'chat-window-' + partnerUsername;
+            
+            // Tính toán vị trí (cách phải 20px, mỗi cửa sổ cách nhau 340px)
+            const offset = 20 + (Object.keys(activeChats).length * 340);
+            chatWindow.style.right = offset + 'px';
+
+            chatWindow.innerHTML = `
+                <div class="chat-window-header">
+                    <span class="chat-window-title">${partnerName}</span>
+                    <button class="close-chat-btn" onclick="closeChatWindow('${partnerUsername}')">&times;</button>
+                </div>
+                <ul class="chat-window-body" id="msg-area-${partnerUsername}"></ul>
+                <div class="chat-window-footer">
+                    <form onsubmit="sendMessage(event, '${partnerUsername}')">
+                        <input type="text" placeholder="Nhập tin nhắn..." autocomplete="off"/>
+                        <button type="submit">Gửi</button>
+                    </form>
+                </div>
+            `;
+
+            document.body.appendChild(chatWindow);
+            
+            // Lưu vào state
+            activeChats[partnerUsername] = {
+                element: chatWindow,
+                roomId: roomId,
+                subscription: null
+            };
+        }
+
+        function closeChatWindow(partnerUsername) {
+            if (activeChats[partnerUsername]) {
+                // Hủy đăng ký socket
+                if (activeChats[partnerUsername].subscription) {
+                    activeChats[partnerUsername].subscription.unsubscribe();
+                }
+                // Xóa DOM
+                activeChats[partnerUsername].element.remove();
+                delete activeChats[partnerUsername];
+                
+                // Sắp xếp lại vị trí các cửa sổ còn lại
+                repositionChatWindows();
+            }
+        }
+
+        function repositionChatWindows() {
+            const keys = Object.keys(activeChats);
+            keys.forEach((key, index) => {
+                const offset = 20 + (index * 340);
+                activeChats[key].element.style.right = offset + 'px';
+            });
+        }
+
+        function loadChatHistory(roomId, partnerUsername) {
             fetch('/api/messages/' + roomId)
                 .then(res => res.json())
                 .then(messages => {
-                    messages.forEach(drawMessage);
+                    messages.forEach(msg => drawMessage(msg, partnerUsername));
                 });
-        }
-
-        function backToUserList() {
-            document.querySelector('#chat-page').classList.add('hidden');
-            document.querySelector('#user-list-page').classList.remove('hidden');
-            currentChatPartner = null;
-            if (currentSubscription) currentSubscription.unsubscribe(); // Ngắt kết nối phòng chat hiện tại
         }
 
         // WEBSOCKET LOGIC
@@ -203,21 +237,19 @@
             stompClient.connect({}, () => console.log("Connected"), onError); 
         }
 
-        function subscribeToRoom() {
-            if (!stompClient || !currentChatPartner) return;
-            
-            // Tạo ID phòng duy nhất bằng cách sắp xếp tên 2 người (ví dụ: chat_nam_tuan)
-            // Lưu ý: Đây là cách giả lập phòng chat riêng trên Frontend
-            const myName = document.querySelector('#login-username').value.trim();
-            const partnerName = currentChatPartner.username;
-            const roomId = [myName, partnerName].sort().join('_');
+        function subscribeToRoom(partnerUsername, roomId) {
+            if (!stompClient) return;
             const topic = `/topic/${roomId}`;
-
-            if (currentSubscription) currentSubscription.unsubscribe();
-            currentSubscription = stompClient.subscribe(topic, onMessageReceived);
             
-            // Gửi thông báo tham gia (tùy chọn)
-            // stompClient.send("/app/chat.addUser", {}, JSON.stringify({sender: username, type: 'JOIN'}));
+            // Đăng ký và lưu subscription vào activeChats để sau này hủy
+            const sub = stompClient.subscribe(topic, (payload) => {
+                const msg = JSON.parse(payload.body);
+                drawMessage(msg, partnerUsername);
+            });
+            
+            if (activeChats[partnerUsername]) {
+                activeChats[partnerUsername].subscription = sub;
+            }
         }
 
         function onError(error) { console.error("Lỗi: " + error); }
@@ -232,8 +264,11 @@
             return '#' + "00000".substring(0, 6 - c.length) + c;
         }
 
-        function drawMessage(message) {
-            var messageArea = document.querySelector('#messageArea');
+        function drawMessage(message, partnerUsername) {
+            // Tìm đúng khung chat để vẽ tin nhắn
+            var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
+            if (!messageArea) return; // Nếu cửa sổ chat đã đóng thì bỏ qua
+
             var messageLi = document.createElement('li');
 
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
@@ -270,45 +305,27 @@
             messageArea.scrollTop = messageArea.scrollHeight;
         }
 
-        function onMessageReceived(payload) { drawMessage(JSON.parse(payload.body)); }
-
-        function sendMessage(event) {
-            var input = document.querySelector('#message');
+        function sendMessage(event, partnerUsername) {
+            event.preventDefault(); // Ngăn reload trang
+            
+            // Tìm input trong form vừa submit
+            var input = event.target.querySelector('input');
             var content = input.value.trim();
-            if(content && stompClient && currentChatPartner) {
-                // Gửi tin nhắn kèm theo topic ID để Backend biết gửi vào đâu (Nếu Backend hỗ trợ Dynamic Topic)
-                // Hoặc nếu Backend chỉ broadcast public, ta cần sửa Backend.
-                // Ở đây tôi giả định bạn sẽ sửa Backend để gửi lại đúng topic, hoặc dùng topic public nhưng lọc tin nhắn.
-                // Cách đơn giản nhất với code hiện tại: Gửi vào topic chung nhưng client tự lọc (không bảo mật nhưng chạy được ngay)
-                // Tuy nhiên, để đúng logic "Room", ta cần gửi topic vào header hoặc body.
-                
-                // Logic tạm thời: Gửi tin nhắn như cũ, nhưng Backend cần được cấu hình để broadcast lại đúng chỗ.
-                // Để code chạy được ngay với Backend cũ (broadcast public), ta sẽ dùng logic lọc tin nhắn ở onMessageReceived (nếu cần).
-                // Nhưng để "chuẩn", ta gửi tin nhắn vào topic riêng:
-                
-                // *LƯU Ý*: Bạn cần đảm bảo Backend ChatController nhận tin nhắn và gửi lại vào đúng topic.
-                // Vì tôi không sửa được ChatController, tôi sẽ dùng cơ chế gửi vào topic public nhưng lọc hiển thị (nếu backend chưa sửa).
-                // Nhưng code dưới đây giả định ta dùng cơ chế Room ID ở trên.
-                
-                const myName = document.querySelector('#login-username').value.trim();
-                const partnerName = currentChatPartner.username;
-                const roomId = [myName, partnerName].sort().join('_');
+            
+            if(content && stompClient && activeChats[partnerUsername]) {
+                const roomId = activeChats[partnerUsername].roomId;
                 
                 // Gửi tin nhắn. Lưu ý: Backend cần hỗ trợ nhận tham số roomId hoặc destination
-                // Nếu bạn chưa sửa Backend, tin nhắn này có thể sẽ được gửi public.
                 stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
                     sender: username, 
                     content: content, 
                     type: 'CHAT',
-                    roomId: roomId // Gửi kèm ID phòng (Cần sửa Backend để xử lý cái này)
+                    roomId: roomId 
                 }));
                 
                 input.value = '';
             }
-            event.preventDefault();
         }
-
-        document.querySelector('#messageForm').addEventListener('submit', sendMessage, true);
     </script>
 </body>
 </html>
