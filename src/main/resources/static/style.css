@@ -385,3 +385,32 @@ body {
     height: 36px;
 }
 .attach-btn:hover { color: #0073e6; }
+
+/* Ảnh xem trước khi gửi */
+.image-preview-container {
+    display: none; /* Mặc định ẩn */
+    padding: 5px 10px;
+    background: #f0f2f5;
+    border-radius: 10px;
+    margin-bottom: 5px;
+    position: relative;
+    width: fit-content;
+}
+.image-preview {
+    max-height: 100px;
+    border-radius: 8px;
+    display: block;
+}
+.remove-image-btn {
+    position: absolute; top: -5px; right: -5px;
+    background: #e4e6eb; color: #050505;
+    border-radius: 50%; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 12px; font-weight: bold;
+    border: 1px solid #fff;
+}
+
+/* Ảnh trong tin nhắn */
+.chat-image {
+    max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer;
+}

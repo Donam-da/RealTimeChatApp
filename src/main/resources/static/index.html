@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=1.9">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -222,9 +222,13 @@
                 <ul class="chat-window-body" id="msg-area-${partnerUsername}"></ul>
                 <div class="chat-window-footer">
                     <div id="typing-${partnerUsername}" class="typing-indicator"></div>
+                    <div id="preview-container-${partnerUsername}" class="image-preview-container">
+                        <img id="preview-img-${partnerUsername}" class="image-preview" src="" alt="Preview">
+                        <div class="remove-image-btn" onclick="removeImage('${partnerUsername}')">&times;</div>
+                    </div>
                     <form onsubmit="sendMessage(event, '${partnerUsername}')">
                         <label class="attach-btn" title="Gửi ảnh">
-                            <input type="file" accept="image/*" style="display: none">
+                            <input type="file" accept="image/*" style="display: none" onchange="handleFileSelect(event, '${partnerUsername}')">
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                                 <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                             </svg>
@@ -248,7 +252,8 @@
                 subscription: null,
                 typingTimeout: null, // Để quản lý thời gian ẩn thông báo
                 status: partnerUser.status,
-                lastActive: partnerUser.lastActive
+                lastActive: partnerUser.lastActive,
+                pendingImage: null // Lưu trữ ảnh đang chờ gửi
             };
         }
 
@@ -473,7 +478,12 @@
                     messageLi.classList.add('my-message-container');
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'my-bubble');
-                    bubble.textContent = message.content;
+                    
+                    if (message.type === 'IMAGE') {
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
+                    } else {
+                        bubble.textContent = message.content;
+                    }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     contentContainer.appendChild(bubble);
                 } else {
@@ -484,7 +494,12 @@
                     avatar.style.backgroundColor = getAvatarColor(senderDisplayName);
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
-                    bubble.textContent = message.content;
+                    
+                    if (message.type === 'IMAGE') {
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
+                    } else {
+                        bubble.textContent = message.content;
+                    }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     contentContainer.append(avatar, bubble);
                 }
@@ -571,6 +586,36 @@
             }
         }
 
+        // --- XỬ LÝ ẢNH ---
+        function handleFileSelect(event, partnerUsername) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                
+                // Hiển thị preview
+                const previewContainer = document.getElementById(`preview-container-${partnerUsername}`);
+                const previewImg = document.getElementById(`preview-img-${partnerUsername}`);
+                
+                previewImg.src = base64Image;
+                previewContainer.style.display = 'block';
+                
+                // Lưu vào biến tạm để chờ gửi
+                if (activeChats[partnerUsername]) {
+                    activeChats[partnerUsername].pendingImage = base64Image;
+                }
+            };
+            reader.readAsDataURL(file);
+            event.target.value = ''; // Reset input để chọn lại cùng file nếu muốn
+        }
+
+        function removeImage(partnerUsername) {
+            document.getElementById(`preview-container-${partnerUsername}`).style.display = 'none';
+            if (activeChats[partnerUsername]) activeChats[partnerUsername].pendingImage = null;
+        }
+
         function sendMessage(event, partnerUsername) {
             if(event.preventDefault) event.preventDefault(); // Ngăn reload trang
             
@@ -579,16 +624,26 @@
             var input = form.querySelector('textarea');
             var content = input.value.trim();
             
-            if(content && stompClient && activeChats[partnerUsername]) {
+            // Kiểm tra xem có tin nhắn text hoặc ảnh không
+            const hasImage = activeChats[partnerUsername] && activeChats[partnerUsername].pendingImage;
+            
+            if((content || hasImage) && stompClient && activeChats[partnerUsername]) {
                 const roomId = activeChats[partnerUsername].roomId;
                 
-                // Gửi tin nhắn. Lưu ý: Backend cần hỗ trợ nhận tham số roomId hoặc destination
-                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
-                    sender: username, 
-                    content: content, 
-                    type: 'CHAT',
-                    roomId: roomId 
-                }));
+                // Nếu có ảnh, gửi ảnh trước (hoặc gửi text nếu không có ảnh)
+                if (hasImage) {
+                    stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                        sender: username, content: activeChats[partnerUsername].pendingImage, type: 'IMAGE', roomId: roomId
+                    }));
+                    removeImage(partnerUsername); // Xóa preview sau khi gửi
+                }
+
+                // Nếu có text, gửi text
+                if (content) {
+                    stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                        sender: username, content: content, type: 'CHAT', roomId: roomId
+                    }));
+                }
                 
                 input.value = '';
                 input.style.height = 'auto'; // Reset chiều cao về 1 dòng

@@ -16,16 +16,14 @@ public class ChatMessage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String roomId;
     private String sender;
+    
+    @Lob
+    @Column(columnDefinition = "LONGTEXT") // Quan trọng: Cho phép lưu chuỗi Base64 dài của ảnh
     private String content;
     
-    // Quan trọng: Lưu mã phòng để biết tin nhắn thuộc cuộc trò chuyện nào
-    @Column(name = "room_id")
-    private String roomId; 
-
-    private String type; // CHAT, JOIN, LEAVE
-
+    private String type; // CHAT, JOIN, LEAVE, IMAGE, READ, TYPING
     private LocalDateTime timestamp;
-
     private String status; // SENT, READ
 }
