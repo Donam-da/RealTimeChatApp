@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -15,12 +17,14 @@ public class ChatController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final MessageRepository messageRepository;
+    private final ChatClearRecordRepository chatClearRecordRepository;
 
     // Xử lý gửi tin nhắn từ WebSocket
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessage chatMessage) {
         // 1. Lưu tin nhắn vào Database
         chatMessage.setStatus("SENT"); // Mặc định là Đã gửi
+        chatMessage.setTimestamp(LocalDateTime.now()); // Đảm bảo có thời gian gửi
         messageRepository.save(chatMessage);
 
         // 2. Gửi tin nhắn đến ĐÚNG topic của phòng đó (ví dụ: /topic/nam_tuan)
@@ -54,15 +58,26 @@ public class ChatController {
 
     // API lấy lịch sử tin nhắn của một phòng cụ thể
     @GetMapping("/api/messages/{roomId}")
-    public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId) {
+    public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId, @RequestParam String username) {
+        // Kiểm tra xem user này đã từng xóa lịch sử chat chưa
+        Optional<ChatClearRecord> record = chatClearRecordRepository.findByUsernameAndRoomId(username, roomId);
+        if (record.isPresent()) {
+            // Nếu có, chỉ trả về tin nhắn SAU thời điểm xóa
+            return ResponseEntity.ok(messageRepository.findByRoomIdAndTimestampAfter(roomId, record.get().getClearedAt()));
+        }
+        // Nếu chưa xóa bao giờ, trả về toàn bộ
         return ResponseEntity.ok(messageRepository.findByRoomId(roomId));
     }
 
-    // API Xóa lịch sử chat của một phòng
+    // API Xóa lịch sử chat (Chỉ ẩn với người dùng hiện tại)
     @Transactional
     @DeleteMapping("/api/messages/{roomId}")
-    public ResponseEntity<String> deleteChatHistory(@PathVariable String roomId) {
-        messageRepository.deleteByRoomId(roomId);
-        return ResponseEntity.ok("Đã xóa đoạn chat");
+    public ResponseEntity<String> deleteChatHistory(@PathVariable String roomId, @RequestParam String username) {
+        Optional<ChatClearRecord> recordOpt = chatClearRecordRepository.findByUsernameAndRoomId(username, roomId);
+        ChatClearRecord record = recordOpt.orElse(new ChatClearRecord(null, username, roomId, null));
+        record.setClearedAt(LocalDateTime.now()); // Cập nhật mốc thời gian xóa là hiện tại
+        chatClearRecordRepository.save(record);
+        
+        return ResponseEntity.ok("Đã xóa đoạn chat (phía bạn)");
     }
 }

@@ -255,7 +255,8 @@
             if (!confirm("Bạn có chắc muốn xóa toàn bộ tin nhắn với người này?")) return;
             
             const roomId = activeChats[partnerUsername].roomId;
-            fetch('/api/messages/' + roomId, { method: 'DELETE' })
+            // Truyền thêm username để server biết ai đang xóa
+            fetch('/api/messages/' + roomId + '?username=' + username, { method: 'DELETE' })
                 .then(res => {
                     if (res.ok) {
                         document.querySelector('#msg-area-' + partnerUsername).innerHTML = '';
@@ -267,7 +268,8 @@
         }
 
         function loadChatHistory(roomId, partnerUsername, partnerName) {
-            fetch('/api/messages/' + roomId)
+            // Truyền thêm username để server lọc tin nhắn đã xóa
+            fetch('/api/messages/' + roomId + '?username=' + username)
                 .then(res => res.json())
                 .then(messages => {
                     messages.forEach(msg => drawMessage(msg, partnerUsername));
