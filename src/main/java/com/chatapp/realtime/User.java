@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users") // Chỉ định ánh xạ vào bảng 'users' bạn vừa tạo
@@ -24,4 +25,7 @@ public class User {
 
     @Column(name = "display_name")
     private String displayName;
+
+    private String status; // ONLINE, OFFLINE
+    private LocalDateTime lastActive;
 }

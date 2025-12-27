@@ -46,6 +46,7 @@
     <script>
         var stompClient = null;
         var username = null; 
+        var myDisplayName = null; // Biến lưu tên hiển thị của mình
         var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
 
@@ -91,7 +92,8 @@
                 } else { throw new Error("Login failed"); }
             }).then(data => {
                 // Ưu tiên sử dụng displayName (Tên hiển thị) nếu có, nếu không thì dùng username
-                username = data.displayName || data.username;
+                username = data.username; // QUAN TRỌNG: Giữ nguyên username gốc để định danh
+                myDisplayName = data.displayName || data.username; // Lưu tên hiển thị riêng
                 document.querySelector('#username-page').classList.add('hidden');
                 fetchUserList(); // Lấy danh sách user thay vì vào chat ngay
                 document.querySelector('#logout-btn').classList.remove('hidden'); // Hiện nút đăng xuất
@@ -100,6 +102,11 @@
         }
 
         function logout() {
+            // Gọi API logout để cập nhật trạng thái Offline trên server
+            if (username) {
+                fetch('/api/auth/logout', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: username}) });
+            }
+
             if (stompClient) {
                 stompClient.disconnect(); // Ngắt kết nối WebSocket
             }
@@ -118,6 +125,12 @@
                 .then(res => res.json())
                 .then(users => {
                     allUsers = users.filter(u => u.username !== document.querySelector('#login-username').value.trim()); // Loại bỏ chính mình
+                    // Cập nhật lại trạng thái cho các cửa sổ chat đang mở (nếu có)
+                    allUsers.forEach(u => {
+                        if (activeChats[u.username]) {
+                            updateStatusUI(u.username, u.status, u.lastActive);
+                        }
+                    });
                     renderUserList();
                     document.querySelector('#user-list-page').classList.remove('hidden');
                 });
@@ -161,6 +174,7 @@
             subscribeToRoom(partnerUsername, roomId);
             loadChatHistory(roomId, partnerUsername, partnerName);
             sendReadReceipt(partnerUsername, roomId); // Báo đã xem ngay khi mở chat
+            updateStatusUI(partnerUsername, partnerUser.status, partnerUser.lastActive); // Hiển thị trạng thái ban đầu
         }
 
         function createChatWindowUI(partnerUser, roomId) {
@@ -179,7 +193,10 @@
             chatWindow.innerHTML = `
                 <div class="chat-window-header">
                     <div style="display: flex; align-items: center;">
-                        <span class="chat-window-title">${partnerName}</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <span class="chat-window-title">${partnerName}</span>
+                            <span class="chat-window-status" id="status-${partnerUsername}">Đang tải...</span>
+                        </div>
                         <div class="dropdown">
                             <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">&#9662;</button>
                             <div id="dropdown-${partnerUsername}" class="dropdown-content">
@@ -206,7 +223,9 @@
                 element: chatWindow,
                 roomId: roomId,
                 subscription: null,
-                typingTimeout: null // Để quản lý thời gian ẩn thông báo
+                typingTimeout: null, // Để quản lý thời gian ẩn thông báo
+                status: partnerUser.status,
+                lastActive: partnerUser.lastActive
             };
         }
 
@@ -280,7 +299,7 @@
                         const lastMsg = myMsgs[myMsgs.length - 1];
                         if (lastMsg.status === 'READ') {
                             // Giả lập sự kiện READ để vẽ icon
-                            drawMessage({ type: 'READ', sender: partnerName }, partnerUsername);
+                            drawMessage({ type: 'READ', sender: partnerUsername }, partnerUsername);
                         }
                     }
                 });
@@ -290,7 +309,29 @@
         function connectWebSocket() {
             var socket = new SockJS('/ws');
             stompClient = Stomp.over(socket);
-            stompClient.connect({}, () => console.log("Connected"), onError); 
+            stompClient.connect({}, () => {
+                console.log("Connected");
+                subscribeToPresence(); // Lắng nghe trạng thái Online/Offline
+            }, onError); 
+        }
+
+        // Lắng nghe trạng thái người dùng toàn cục
+        function subscribeToPresence() {
+            stompClient.subscribe('/topic/presence', (payload) => {
+                const msg = JSON.parse(payload.body);
+                if (msg.type === 'STATUS') {
+                    // Cập nhật UI nếu đang mở chat với người này
+                    if (activeChats[msg.sender]) {
+                        updateStatusUI(msg.sender, msg.content, msg.timestamp);
+                    }
+                    // Cập nhật danh sách user ngầm định (để lần sau mở chat có dữ liệu mới)
+                    const userInList = allUsers.find(u => u.username === msg.sender);
+                    if (userInList) {
+                        userInList.status = msg.content;
+                        userInList.lastActive = msg.timestamp;
+                    }
+                }
+            });
         }
 
         function subscribeToRoom(partnerUsername, roomId) {
@@ -318,6 +359,15 @@
 
         function onError(error) { console.error("Lỗi: " + error); }
 
+        // Tự động đăng xuất khi đóng tab/trình duyệt
+        window.addEventListener('beforeunload', function (e) {
+            if (username) {
+                var data = JSON.stringify({username: username});
+                var blob = new Blob([data], {type: 'application/json'});
+                navigator.sendBeacon('/api/auth/logout', blob);
+            }
+        });
+
         // Hàm tạo màu ngẫu nhiên dựa trên tên để avatar sinh động hơn
         function getAvatarColor(name) {
             var hash = 0;
@@ -326,6 +376,12 @@
             }
             var c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
             return '#' + "00000".substring(0, 6 - c.length) + c;
+        }
+
+        function getDisplayName(userId) {
+            if (userId === username) return myDisplayName;
+            const u = allUsers.find(user => user.username === userId);
+            return u ? (u.displayName || u.username) : userId;
         }
 
         function drawMessage(message, partnerUsername) {
@@ -361,6 +417,7 @@
                 messageLi.classList.add('event-message');
                 messageLi.textContent = message.sender + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
             } else {
+                var senderDisplayName = getDisplayName(message.sender);
                 var contentContainer = document.createElement('div');
                 contentContainer.classList.add('message-content');
                 if (message.sender === username) {
@@ -373,8 +430,8 @@
                     messageLi.classList.add('other-message-container');
                     var avatar = document.createElement('div');
                     avatar.classList.add('avatar');
-                    avatar.textContent = message.sender.charAt(0); // Lấy chữ cái đầu
-                    avatar.style.backgroundColor = getAvatarColor(message.sender);
+                    avatar.textContent = senderDisplayName.charAt(0); // Lấy chữ cái đầu của tên hiển thị
+                    avatar.style.backgroundColor = getAvatarColor(senderDisplayName);
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
                     bubble.textContent = message.content;
@@ -387,10 +444,11 @@
         }
 
         function addSeenIcon(container, partnerUsername) {
+            var displayName = getDisplayName(partnerUsername);
             const icon = document.createElement('div');
             icon.className = 'seen-icon';
-            icon.style.backgroundColor = getAvatarColor(partnerUsername);
-            icon.textContent = partnerUsername.charAt(0);
+            icon.style.backgroundColor = getAvatarColor(displayName);
+            icon.textContent = displayName.charAt(0);
             container.appendChild(icon);
         }
 
@@ -459,6 +517,63 @@
                 input.value = '';
             }
         }
+
+        // --- HÀM XỬ LÝ TRẠNG THÁI & THỜI GIAN ---
+        function updateStatusUI(username, status, lastActive) {
+            const statusEl = document.getElementById(`status-${username}`);
+            if (!statusEl) return;
+
+            // Cập nhật dữ liệu vào activeChats để setInterval có thể dùng lại
+            if (activeChats[username]) {
+                activeChats[username].status = status;
+                activeChats[username].lastActive = lastActive;
+            }
+
+            if (status === 'ONLINE') {
+                statusEl.textContent = 'Đang hoạt động';
+            } else {
+                statusEl.textContent = 'Hoạt động ' + timeSince(lastActive);
+            }
+        }
+
+        function parseDate(date) {
+            if (!date) return null;
+            // Xử lý trường hợp Java gửi về mảng [yyyy, MM, dd, HH, mm, ss]
+            if (Array.isArray(date)) {
+                return new Date(date[0], date[1] - 1, date[2], date[3], date[4], date[5]);
+            }
+            return new Date(date);
+        }
+
+        function timeSince(date) {
+            date = parseDate(date);
+            if (!date) return "vài phút trước";
+            var seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return "1 phút trước"; // Hiển thị ngay lập tức
+            
+            var interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " năm trước";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " tháng trước";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " ngày trước";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " giờ trước";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " phút trước";
+            return "Vừa xong";
+        }
+
+        // Tự động cập nhật thời gian "Hoạt động X phút trước" mỗi phút
+        setInterval(() => {
+            Object.keys(activeChats).forEach(username => {
+                const chat = activeChats[username];
+                if (chat.status !== 'ONLINE') {
+                    updateStatusUI(username, chat.status, chat.lastActive);
+                }
+            });
+        }, 60000);
     </script>
 </body>
 </html>
