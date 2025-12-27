@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 import java.util.Optional;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,5 +31,14 @@ public class AuthController {
             return ResponseEntity.ok(dbUser.get());
         }
         return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu!");
+    }
+
+    // API Lấy danh sách tất cả người dùng
+    @GetMapping("/users")
+    public ResponseEntity<List<User>> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        // Xóa mật khẩu trước khi trả về client để bảo mật
+        users.forEach(u -> u.setPassword(null));
+        return ResponseEntity.ok(users);
     }
 }

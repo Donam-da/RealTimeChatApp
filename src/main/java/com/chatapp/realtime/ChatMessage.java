@@ -1,30 +1,29 @@
-package com.chatapp.realtime; // Đảm bảo đúng package bạn vừa rename
+package com.chatapp.realtime;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
-@Entity // Đánh dấu để JPA tạo bảng trong MySQL
-@Data // Lombok: Tự động tạo Getter, Setter, toString, equals, hashCode
-@NoArgsConstructor // Lombok: Tạo constructor không tham số
-@AllArgsConstructor // Lombok: Tạo constructor đầy đủ tham số
-@Builder // Hỗ trợ tạo đối tượng theo thiết kế Builder pattern
+@Entity
+@Table(name = "chat_messages")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatMessage {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String sender;   // Người gửi
-    private String content;  // Nội dung tin nhắn
+    private String sender;
+    private String content;
+    
+    // Quan trọng: Lưu mã phòng để biết tin nhắn thuộc cuộc trò chuyện nào
+    @Column(name = "room_id")
+    private String roomId; 
 
-    @Enumerated(EnumType.STRING)
-    private MessageType type; // Loại tin nhắn: CHAT, JOIN, hoặc LEAVE
+    private String type; // CHAT, JOIN, LEAVE
 
-    private LocalDateTime timestamp; // Thời gian gửi tin nhắn
-
-    // Định nghĩa các loại tin nhắn trong hệ thống chat
-    public enum MessageType {
-        CHAT, JOIN, LEAVE
-    }
+    private LocalDateTime timestamp;
 }

@@ -2,42 +2,33 @@ package com.chatapp.realtime;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.handler.annotation.SendTo;
-import org.springframework.stereotype.Controller;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 public class ChatController {
 
-    private final ChatService chatService;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final MessageRepository messageRepository;
 
-    @GetMapping("/chat/history")
-    @ResponseBody 
-    public List<ChatMessage> getChatHistory() {
-        return chatService.getAllMessages();
-    }
-
-    // THÊM API XÓA: Dùng phương thức DELETE
-    @DeleteMapping("/chat/clear")
-    @ResponseBody
-    public String clearChat() {
-        chatService.clearAllMessages();
-        return "Deleted";
-    }
-
+    // Xử lý gửi tin nhắn từ WebSocket
     @MessageMapping("/chat.sendMessage")
-    @SendTo("/topic/public")
-    public ChatMessage sendMessage(@Payload ChatMessage chatMessage) {
-        return chatService.saveMessage(chatMessage);
+    public void sendMessage(@Payload ChatMessage chatMessage) {
+        // 1. Lưu tin nhắn vào Database
+        messageRepository.save(chatMessage);
+
+        // 2. Gửi tin nhắn đến ĐÚNG topic của phòng đó (ví dụ: /topic/nam_tuan)
+        // Client nào đang subscribe topic này mới nhận được tin nhắn
+        messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
     }
 
-    @MessageMapping("/chat.addUser")
-    @SendTo("/topic/public")
-    public ChatMessage addUser(@Payload ChatMessage chatMessage) {
-        chatMessage.setType(ChatMessage.MessageType.JOIN);
-        return chatService.saveMessage(chatMessage);
+    // API lấy lịch sử tin nhắn của một phòng cụ thể
+    @GetMapping("/api/messages/{roomId}")
+    public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId) {
+        return ResponseEntity.ok(messageRepository.findByRoomId(roomId));
     }
 }

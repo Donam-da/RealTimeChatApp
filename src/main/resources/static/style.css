@@ -110,6 +110,49 @@ body {
 .chat-header .title { font-size: 18px; font-weight: 600; color: #1c1e21; }
 .chat-header .status { font-size: 12px; color: #4CAF50; font-weight: 500; }
 
+/* Nút quay lại (Back button) */
+.back-btn {
+    background: none; border: none; font-size: 24px; cursor: pointer;
+    margin-right: 15px; color: #65676b; display: flex; align-items: center;
+}
+.back-btn:hover { color: #1c1e21; }
+
+/* Màn hình danh sách User (Dashboard) */
+#user-list-page {
+    width: 100%; max-width: 800px; height: 90vh;
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 20px; display: flex; flex-direction: column;
+    position: relative;
+}
+
+.user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 20px; padding: 20px 0; overflow-y: auto;
+}
+
+.user-card {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; padding: 10px; border-radius: 8px;
+    transition: background 0.2s;
+}
+.user-card:hover { background-color: #f0f2f5; }
+
+.user-avatar-large {
+    width: 60px; height: 60px; border-radius: 50%;
+    background-color: #ddd; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: bold; margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.user-name-display {
+    font-size: 14px; font-weight: 500; color: #050505;
+    text-align: center; word-break: break-word;
+}
+
+/* Nút đăng xuất */
 .logout-btn {
     position: absolute;
     top: 20px;
