@@ -594,12 +594,28 @@
         function formatFullDate(date) {
             var d = parseDate(date);
             if (!d) d = new Date(); // Fallback nếu không có time
+            
+            var now = new Date();
             var hours = d.getHours().toString().padStart(2, '0');
             var minutes = d.getMinutes().toString().padStart(2, '0');
-            var day = d.getDate().toString().padStart(2, '0');
-            var month = (d.getMonth() + 1).toString().padStart(2, '0');
-            var year = d.getFullYear();
-            return `${hours}:${minutes} ${day} tháng ${month}, ${year}`;
+            
+            // So sánh ngày (bỏ qua giờ phút giây để tính khoảng cách ngày chính xác)
+            var dZero = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            var nowZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            var diffTime = nowZero - dZero;
+            var diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) {
+                return `${hours}:${minutes}`;
+            } else if (diffDays > 0 && diffDays < 7) {
+                var days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                return `${hours}:${minutes} ${days[d.getDay()]}`;
+            } else {
+                var day = d.getDate().toString().padStart(2, '0');
+                var month = (d.getMonth() + 1).toString().padStart(2, '0');
+                var year = d.getFullYear();
+                return `${hours}:${minutes} ${day} tháng ${month}, ${year}`;
+            }
         }
 
         function timeSince(date) {
