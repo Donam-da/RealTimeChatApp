@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=1.8">
+    <link rel="stylesheet" href="style.css?v=1.9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -223,6 +223,12 @@
                 <div class="chat-window-footer">
                     <div id="typing-${partnerUsername}" class="typing-indicator"></div>
                     <form onsubmit="sendMessage(event, '${partnerUsername}')">
+                        <label class="attach-btn" title="Gửi ảnh">
+                            <input type="file" accept="image/*" style="display: none">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                            </svg>
+                        </label>
                         <textarea placeholder="Nhập tin nhắn..." rows="1" oninput="autoResize(this); handleTyping('${partnerUsername}')" onkeydown="handleEnter(event, '${partnerUsername}')"></textarea>
                         <button type="submit">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">

@@ -370,9 +370,18 @@ body {
 }
 .chat-window-footer button {
     background: none; color: #0084ff;
-    border: none; padding: 0 15px;
+    border: none; padding: 0 0 0 10px; /* Bỏ padding phải để sát lề hơn */
     cursor: pointer; font-weight: 600; font-size: 16px;
     height: 36px; /* Cố định chiều cao nút để căn chỉnh đẹp */
     display: flex; align-items: center;
 }
 .chat-window-footer button:hover { color: #0073e6; }
+
+/* Nút đính kèm ảnh */
+.attach-btn {
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #0084ff;
+    padding: 0 10px 0 0; /* Cách ô nhập liệu một chút */
+    height: 36px;
+}
+.attach-btn:hover { color: #0073e6; }
