@@ -375,4 +375,4 @@ body {
     height: 36px; /* Cố định chiều cao nút để căn chỉnh đẹp */
     display: flex; align-items: center;
 }
-#messageForm button:hover { color: #0073e6; }
+.chat-window-footer button:hover { color: #0073e6; }
