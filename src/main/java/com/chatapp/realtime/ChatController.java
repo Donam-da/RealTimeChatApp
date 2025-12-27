@@ -19,10 +19,29 @@ public class ChatController {
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessage chatMessage) {
         // 1. Lưu tin nhắn vào Database
+        chatMessage.setStatus("SENT"); // Mặc định là Đã gửi
         messageRepository.save(chatMessage);
 
         // 2. Gửi tin nhắn đến ĐÚNG topic của phòng đó (ví dụ: /topic/nam_tuan)
         // Client nào đang subscribe topic này mới nhận được tin nhắn
+        messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
+    }
+
+    // Xử lý thông báo "Đã xem"
+    @MessageMapping("/chat.read")
+    public void markAsRead(@Payload ChatMessage chatMessage) {
+        // chatMessage ở đây đóng vai trò là sự kiện READ, sender là người vừa đọc tin nhắn
+        
+        // 1. Cập nhật DB: Đánh dấu các tin nhắn trong phòng (mà không phải do mình gửi) thành READ
+        List<ChatMessage> messages = messageRepository.findByRoomId(chatMessage.getRoomId());
+        for (ChatMessage msg : messages) {
+            if (!msg.getSender().equals(chatMessage.getSender()) && !"READ".equals(msg.getStatus())) {
+                msg.setStatus("READ");
+                messageRepository.save(msg);
+            }
+        }
+
+        // 2. Gửi sự kiện READ cho client để cập nhật UI
         messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
     }
 

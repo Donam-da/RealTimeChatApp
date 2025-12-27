@@ -159,7 +159,8 @@
 
             createChatWindowUI(partnerUser, roomId);
             subscribeToRoom(partnerUsername, roomId);
-            loadChatHistory(roomId, partnerUsername);
+            loadChatHistory(roomId, partnerUsername, partnerName);
+            sendReadReceipt(partnerUsername, roomId); // Báo đã xem ngay khi mở chat
         }
 
         function createChatWindowUI(partnerUser, roomId) {
@@ -222,11 +223,21 @@
             });
         }
 
-        function loadChatHistory(roomId, partnerUsername) {
+        function loadChatHistory(roomId, partnerUsername, partnerName) {
             fetch('/api/messages/' + roomId)
                 .then(res => res.json())
                 .then(messages => {
                     messages.forEach(msg => drawMessage(msg, partnerUsername));
+                    
+                    // Sau khi tải lịch sử, kiểm tra xem tin nhắn cuối cùng của mình đã được xem chưa
+                    const myMsgs = messages.filter(m => m.sender === username);
+                    if (myMsgs.length > 0) {
+                        const lastMsg = myMsgs[myMsgs.length - 1];
+                        if (lastMsg.status === 'READ') {
+                            // Giả lập sự kiện READ để vẽ icon
+                            drawMessage({ type: 'READ', sender: partnerName }, partnerUsername);
+                        }
+                    }
                 });
         }
 
@@ -245,6 +256,10 @@
             const sub = stompClient.subscribe(topic, (payload) => {
                 const msg = JSON.parse(payload.body);
                 drawMessage(msg, partnerUsername);
+                // Nếu nhận được tin nhắn CHAT từ người kia, báo đã xem ngay
+                if (msg.type === 'CHAT' && msg.sender !== username) {
+                    sendReadReceipt(partnerUsername, roomId);
+                }
             });
             
             if (activeChats[partnerUsername]) {
@@ -270,6 +285,23 @@
             if (!messageArea) return; // Nếu cửa sổ chat đã đóng thì bỏ qua
 
             var messageLi = document.createElement('li');
+
+            // Xử lý sự kiện ĐÃ XEM (READ)
+            if (message.type === 'READ') {
+                if (message.sender !== username) { // Người kia đã đọc tin nhắn của mình
+                    // Xóa icon cũ
+                    const oldIcons = document.querySelectorAll(`#msg-area-${partnerUsername} .seen-icon`);
+                    oldIcons.forEach(el => el.remove());
+
+                    // Tìm tin nhắn cuối cùng của mình để gắn icon
+                    const myMsgs = document.querySelectorAll(`#msg-area-${partnerUsername} .my-message-container`);
+                    if(myMsgs.length > 0) {
+                        const lastMsg = myMsgs[myMsgs.length - 1];
+                        addSeenIcon(lastMsg, message.sender);
+                    }
+                }
+                return; // Không vẽ tin nhắn, chỉ xử lý icon
+            }
 
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
                 messageLi.classList.add('event-message');
@@ -298,6 +330,24 @@
             }
             messageArea.appendChild(messageLi);
             messageArea.scrollTop = messageArea.scrollHeight;
+        }
+
+        function addSeenIcon(container, partnerUsername) {
+            const icon = document.createElement('div');
+            icon.className = 'seen-icon';
+            icon.style.backgroundColor = getAvatarColor(partnerUsername);
+            icon.textContent = partnerUsername.charAt(0);
+            container.appendChild(icon);
+        }
+
+        function sendReadReceipt(partnerUsername, roomId) {
+            if(stompClient && activeChats[partnerUsername]) {
+                stompClient.send("/app/chat.read", {}, JSON.stringify({
+                    sender: username, // Tôi là người đọc
+                    type: 'READ',
+                    roomId: roomId
+                }));
+            }
         }
 
         function sendMessage(event, partnerUsername) {

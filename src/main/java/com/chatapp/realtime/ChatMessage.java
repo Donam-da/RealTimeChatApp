@@ -26,4 +26,6 @@ public class ChatMessage {
     private String type; // CHAT, JOIN, LEAVE
 
     private LocalDateTime timestamp;
+
+    private String status; // SENT, READ
 }
