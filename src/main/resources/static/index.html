@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -145,16 +145,27 @@
                 card.className = 'user-card';
                 card.onclick = () => startChat(user);
 
+                // Container bọc avatar để định vị chấm trạng thái
+                const avatarContainer = document.createElement('div');
+                avatarContainer.className = 'user-avatar-container';
+
                 const avatar = document.createElement('div');
                 avatar.className = 'user-avatar-large';
                 avatar.textContent = name.charAt(0);
                 avatar.style.backgroundColor = getAvatarColor(name);
 
+                // Badge trạng thái
+                const statusBadge = document.createElement('div');
+                statusBadge.className = 'status-badge';
+                if (user.status === 'ONLINE') statusBadge.classList.add('status-online');
+                else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
+
+                avatarContainer.append(avatar, statusBadge);
                 const nameTag = document.createElement('div');
                 nameTag.className = 'user-name-display';
                 nameTag.textContent = name;
 
-                card.append(avatar, nameTag);
+                card.append(avatarContainer, nameTag);
                 grid.appendChild(card);
             });
         }
@@ -331,6 +342,10 @@
                     if (userInList) {
                         userInList.status = msg.content;
                         userInList.lastActive = msg.timestamp;
+                        // Nếu đang ở trang danh sách thì render lại ngay để cập nhật chấm xanh
+                        if (!document.querySelector('#user-list-page').classList.contains('hidden')) {
+                            renderUserList();
+                        }
                     }
                 }
             });
@@ -568,6 +583,19 @@
             return "Vừa xong";
         }
 
+        function getShortTime(date) {
+            date = parseDate(date);
+            if (!date) return "";
+            var seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return "1p";
+            var minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + "p";
+            var hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + "h";
+            var days = Math.floor(hours / 24);
+            return days + "d";
+        }
+
         // Tự động cập nhật thời gian "Hoạt động X phút trước" mỗi phút
         setInterval(() => {
             Object.keys(activeChats).forEach(username => {
@@ -576,6 +604,10 @@
                     updateStatusUI(username, chat.status, chat.lastActive);
                 }
             });
+            // Cập nhật danh sách user (nếu đang hiển thị) để update thời gian offline (ví dụ 1p -> 2p)
+            if (!document.querySelector('#user-list-page').classList.contains('hidden')) {
+                renderUserList();
+            }
         }, 60000);
     </script>
 </body>
