@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 @RestController
 @RequiredArgsConstructor
@@ -72,6 +76,40 @@ public class ChatController {
                 
                 // Gửi thông báo cập nhật cho mọi người
                 messagingTemplate.convertAndSend("/topic/" + msg.getRoomId(), msg);
+            }
+        }
+    }
+
+    // Xử lý Thả cảm xúc (Reaction)
+    @MessageMapping("/chat.react")
+    public void reactToMessage(@Payload ChatMessage chatMessage) {
+        Optional<ChatMessage> msgOpt = messageRepository.findById(chatMessage.getId());
+        if (msgOpt.isPresent()) {
+            ChatMessage msg = msgOpt.get();
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, String> reactions = new HashMap<>();
+                if (msg.getReactions() != null && !msg.getReactions().isEmpty()) {
+                    reactions = mapper.readValue(msg.getReactions(), new TypeReference<Map<String, String>>(){});
+                }
+                
+                // chatMessage.getContent() chứa emoji (ví dụ: "👍")
+                // Nếu user đã thả icon này rồi thì gỡ bỏ (toggle), nếu chưa thì cập nhật
+                String currentReaction = reactions.get(chatMessage.getSender());
+                if (chatMessage.getContent().equals(currentReaction)) {
+                    reactions.remove(chatMessage.getSender());
+                } else {
+                    reactions.put(chatMessage.getSender(), chatMessage.getContent());
+                }
+                
+                msg.setReactions(mapper.writeValueAsString(reactions));
+                messageRepository.save(msg);
+                
+                // Gửi tin nhắn cập nhật về client với type là REACT
+                msg.setType("REACT");
+                messagingTemplate.convertAndSend("/topic/" + msg.getRoomId(), msg);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

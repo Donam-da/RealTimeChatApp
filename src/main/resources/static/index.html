@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=6.4">
+    <link rel="stylesheet" href="style.css?v=7.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -676,6 +676,17 @@
                     msgArea.innerHTML = '';
                     loadChatHistory(roomId, partnerUsername, getDisplayName(partnerUsername));
                 }
+                // Xử lý sự kiện REACT (Thả cảm xúc)
+                if (msg.type === 'REACT') {
+                    // Tìm tin nhắn trong DOM và cập nhật reactions
+                    const msgEl = document.getElementById(`msg-${msg.id}`);
+                    if (msgEl) {
+                        const bubble = msgEl.querySelector('.bubble');
+                        if (bubble) {
+                            renderReactionsOnBubble(bubble, msg.reactions);
+                        }
+                    }
+                }
                 // Xử lý sự kiện TYPING
                 if (msg.type === 'TYPING' && msg.sender !== username) {
                     showTypingIndicator(partnerUsername, msg.sender);
@@ -759,6 +770,11 @@
                 return;
             }
 
+            // Xử lý sự kiện REACT (Không vẽ tin nhắn mới)
+            if (message.type === 'REACT') {
+                return;
+            }
+
             // --- XỬ LÝ DÒNG THỜI GIAN (SEPARATOR) ---
             var currentMsgDate = parseDate(message.timestamp);
             var currentTimestamp = currentMsgDate ? currentMsgDate.getTime() : Date.now();
@@ -796,7 +812,7 @@
                     // Tin nhắn của mình
                     messageLi.classList.add('my-message-container');
                     
-                    // Thêm nút 3 chấm (Options) TRƯỚC bong bóng chat (để nó hiện bên trái)
+                    // Thêm nút Actions (3 chấm + mặt cười) TRƯỚC bong bóng chat
                     if (message.type !== 'REVOKED') addMessageOptions(contentContainer, message, true);
 
                     var bubble = document.createElement('div');
@@ -812,6 +828,10 @@
                         bubble.textContent = message.content;
                     }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
+                    
+                    // Hiển thị reactions nếu có
+                    renderReactionsOnBubble(bubble, message.reactions);
+
                     contentContainer.appendChild(bubble);
                 } else {
                     // Tin nhắn của người khác
@@ -832,9 +852,13 @@
                         bubble.textContent = message.content;
                     }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
+                    
+                    // Hiển thị reactions nếu có
+                    renderReactionsOnBubble(bubble, message.reactions);
+
                     contentContainer.append(avatar, bubble);
                     
-                    // Thêm nút 3 chấm SAU bong bóng chat (để nó hiện bên phải)
+                    // Thêm nút Actions SAU bong bóng chat
                     if (message.type !== 'REVOKED') addMessageOptions(contentContainer, message, false);
                 }
                 messageLi.appendChild(contentContainer);
@@ -843,8 +867,46 @@
             messageArea.scrollTop = messageArea.scrollHeight;
         }
 
-        // --- XỬ LÝ MESSAGE OPTIONS (3 CHẤM) ---
+        // --- XỬ LÝ MESSAGE ACTIONS (3 CHẤM + REACTION) ---
         function addMessageOptions(container, message, isMyMessage) {
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'msg-actions-container';
+
+            // 1. Nút Mặt cười (Reaction)
+            const reactBtn = document.createElement('div');
+            reactBtn.className = 'reaction-btn';
+            reactBtn.innerHTML = '☺'; // Hoặc dùng icon SVG
+            
+            // Thanh cảm xúc (Reaction Bar)
+            const reactionBar = document.createElement('div');
+            reactionBar.className = 'reaction-bar';
+            const emojis = ['👍', '❤️', '😆', '😮', '😢', '😠'];
+            
+            emojis.forEach(emoji => {
+                const span = document.createElement('span');
+                span.className = 'reaction-emoji';
+                span.textContent = emoji;
+                span.onclick = (e) => {
+                    e.stopPropagation();
+                    sendReaction(message, emoji);
+                    reactionBar.classList.remove('show');
+                };
+                reactionBar.appendChild(span);
+            });
+
+            reactBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Đóng các reaction bar khác
+                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
+                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
+                
+                reactionBar.classList.toggle('show');
+            };
+            
+            reactBtn.appendChild(reactionBar);
+            actionsContainer.appendChild(reactBtn);
+
+            // 2. Nút 3 chấm (Options)
             const btn = document.createElement('div');
             btn.className = 'msg-options-btn';
             btn.innerHTML = '•••';
@@ -870,6 +932,7 @@
                 e.stopPropagation();
                 // Đóng tất cả dropdown khác
                 document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
+                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
                 
                 // Hiển thị dropdown này
                 dropdown.classList.toggle('show');
@@ -884,18 +947,74 @@
             };
 
             // Đóng dropdown khi chuột rời khỏi vùng tin nhắn
+            let timeoutId;
             container.addEventListener('mouseleave', () => {
-                dropdown.classList.remove('show');
+                timeoutId = setTimeout(() => {
+                    dropdown.classList.remove('show');
+                    reactionBar.classList.remove('show');
+                }, 500); // Thêm độ trễ 0.5s để người dùng kịp thao tác
+            });
+            container.addEventListener('mouseenter', () => {
+                if (timeoutId) clearTimeout(timeoutId);
             });
 
-            container.appendChild(btn);
+            actionsContainer.appendChild(btn);
             btn.appendChild(dropdown); // Gắn dropdown vào trong nút để dễ định vị
+            
+            container.appendChild(actionsContainer);
+        }
+
+        function sendReaction(message, emoji) {
+            if (stompClient) {
+                stompClient.send("/app/chat.react", {}, JSON.stringify({
+                    id: message.id,
+                    roomId: message.roomId,
+                    sender: username, // Người thả cảm xúc
+                    content: emoji // Emoji được thả
+                }));
+            }
+        }
+
+        function renderReactionsOnBubble(bubble, reactionsJson) {
+            // Xóa hiển thị cũ nếu có
+            const oldDisplay = bubble.querySelector('.message-reactions-display');
+            if (oldDisplay) oldDisplay.remove();
+
+            if (!reactionsJson) return;
+
+            try {
+                const reactions = JSON.parse(reactionsJson);
+                const counts = {};
+                let total = 0;
+                
+                Object.values(reactions).forEach(emoji => {
+                    counts[emoji] = (counts[emoji] || 0) + 1;
+                    total++;
+                });
+
+                if (total > 0) {
+                    const display = document.createElement('div');
+                    display.className = 'message-reactions-display';
+                    
+                    // Hiển thị tối đa 3 loại emoji phổ biến nhất
+                    const sortedEmojis = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 3);
+                    
+                    let html = sortedEmojis.map(e => `<span>${e}</span>`).join('');
+                    if (total > 1) html += `<span style="margin-left:2px; color:#65676b; font-weight:bold">${total}</span>`;
+                    
+                    display.innerHTML = html;
+                    bubble.appendChild(display);
+                }
+            } catch (e) {
+                console.error("Lỗi parse reactions", e);
+            }
         }
 
         // Đóng dropdown tin nhắn khi click ra ngoài
         window.addEventListener('click', function(e) {
-            if (!e.target.closest('.msg-options-btn')) {
+            if (!e.target.closest('.msg-options-btn') && !e.target.closest('.reaction-btn')) {
                 document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
+                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
             }
         });
 
@@ -1614,9 +1733,5 @@
             closeCropModal();
         }
     </script>
-</body>
-</html>cript>
-</body>
-</html>cript>
 </body>
 </html>

@@ -29,4 +29,7 @@ public class ChatMessage {
 
     @Column(columnDefinition = "TEXT")
     private String deletedBy; // Lưu danh sách username đã xóa tin nhắn này phía họ (ngăn cách bởi dấu phẩy)
+
+    @Column(columnDefinition = "TEXT")
+    private String reactions; // Lưu JSON danh sách cảm xúc: {"username": "emoji"}
 }
