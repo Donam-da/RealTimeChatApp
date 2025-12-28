@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.6">
+    <link rel="stylesheet" href="style.css?v=3.8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -791,6 +791,8 @@
         var currentImageList = []; // Lưu danh sách ảnh hiện tại
         var currentImageIndex = 0;
         var currentZoom = 1; // Biến lưu tỷ lệ zoom hiện tại
+        var currentTranslateX = 0;
+        var currentTranslateY = 0;
 
         function openImageViewer(imgElement) {
             const overlay = document.getElementById('image-viewer-overlay');
@@ -824,7 +826,10 @@
             
             // Reset zoom về mặc định khi đổi ảnh
             currentZoom = 1;
-            img.style.transform = 'scale(1)';
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            img.style.transform = 'translate(0px, 0px) scale(1)';
+            img.style.cursor = 'default';
 
             // Tạo danh sách thumbnail
             thumbnailsContainer.innerHTML = '';
@@ -887,7 +892,85 @@
             const delta = e.deltaY * -0.001; 
             currentZoom = Math.min(Math.max(0.5, currentZoom + delta), 5); // Giới hạn từ 0.5x đến 5x
             
-            this.style.transform = `scale(${currentZoom})`;
+            if (currentZoom <= 1) {
+                currentZoom = 1;
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+                this.style.cursor = 'default';
+            } else {
+                this.style.cursor = 'grab';
+            }
+            
+            this.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentZoom})`;
+        });
+
+        // --- KÉO ẢNH (PAN) KHI ĐANG ZOOM ---
+        let isDraggingImage = false;
+        let imgStartX = 0, imgStartY = 0;
+
+        imgViewer.addEventListener('mousedown', function(e) {
+            if (currentZoom <= 1) return; // Chỉ cho phép kéo khi đã phóng to
+            isDraggingImage = true;
+            imgStartX = e.clientX - currentTranslateX;
+            imgStartY = e.clientY - currentTranslateY;
+            this.classList.add('dragging');
+            e.preventDefault();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDraggingImage) {
+                isDraggingImage = false;
+                imgViewer.classList.remove('dragging');
+
+                // --- TÍNH TOÁN GIỚI HẠN ĐỂ ĐẨY ẢNH VỀ (SNAP BACK) ---
+                const overlay = document.getElementById('image-viewer-overlay');
+                const viewWidth = overlay.clientWidth;
+                const viewHeight = overlay.clientHeight;
+
+                // Kích thước hiện tại của ảnh sau khi zoom
+                const renderedWidth = imgViewer.offsetWidth * currentZoom;
+                const renderedHeight = imgViewer.offsetHeight * currentZoom;
+
+                // Tính toán giới hạn di chuyển (Limit)
+                // Nếu ảnh to hơn màn hình: giới hạn là khoảng cách từ tâm để mép ảnh chạm mép màn hình
+                // Nếu ảnh nhỏ hơn màn hình: giới hạn là 0 (phải ở giữa)
+                const limitX = renderedWidth > viewWidth ? (renderedWidth - viewWidth) / 2 : 0;
+                const limitY = renderedHeight > viewHeight ? (renderedHeight - viewHeight) / 2 : 0;
+
+                let newX = currentTranslateX;
+                let newY = currentTranslateY;
+
+                // Kiểm tra và điều chỉnh X (Nếu vượt quá giới hạn thì gán lại bằng giới hạn)
+                if (currentTranslateX > limitX) newX = limitX;
+                else if (currentTranslateX < -limitX) newX = -limitX;
+
+                // Kiểm tra và điều chỉnh Y
+                if (currentTranslateY > limitY) newY = limitY;
+                else if (currentTranslateY < -limitY) newY = -limitY;
+
+                // Nếu vị trí cần thay đổi, thực hiện animation trượt về
+                if (newX !== currentTranslateX || newY !== currentTranslateY) {
+                    currentTranslateX = newX;
+                    currentTranslateY = newY;
+                    
+                    // Thêm transition tạm thời để hiệu ứng trượt về mượt mà (0.3s)
+                    imgViewer.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    imgViewer.style.transform = `translate(${newX}px, ${newY}px) scale(${currentZoom})`;
+
+                    // Reset transition về mặc định (trong CSS) sau khi animation xong
+                    setTimeout(() => {
+                        imgViewer.style.transition = ''; 
+                    }, 300);
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (!isDraggingImage) return;
+            e.preventDefault();
+            currentTranslateX = e.clientX - imgStartX;
+            currentTranslateY = e.clientY - imgStartY;
+            imgViewer.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentZoom})`;
         });
 
         // --- KÉO ĐỂ CUỘN (DRAG TO SCROLL) CHO THUMBNAILS ---

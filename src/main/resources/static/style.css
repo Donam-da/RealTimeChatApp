@@ -468,6 +468,10 @@ body {
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     transition: transform 0.1s ease-out; /* Hiệu ứng zoom mượt mà */
 }
+#image-viewer-img.dragging {
+    transition: none; /* Tắt hiệu ứng khi kéo để không bị trễ */
+    cursor: grabbing;
+}
 .viewer-close-btn {
     position: absolute; top: 20px; right: 30px;
     background: rgba(255, 255, 255, 0.2);
