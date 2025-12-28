@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.0">
+    <link rel="stylesheet" href="style.css?v=3.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -41,6 +41,12 @@
         <div id="user-grid" class="user-grid">
             <!-- Các icon user sẽ được thêm vào đây bằng JS -->
         </div>
+    </div>
+
+    <!-- Trình xem ảnh toàn màn hình -->
+    <div id="image-viewer-overlay" onclick="closeImageViewer()">
+        <button class="viewer-close-btn">&times;</button>
+        <img id="image-viewer-img" src="" alt="Full Screen Image" onclick="event.stopPropagation()">
     </div>
 
     <script>
@@ -500,7 +506,7 @@
                     
                     if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this.src)">`;
                     } else {
                         bubble.textContent = message.content;
                     }
@@ -517,7 +523,7 @@
                     
                     if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this.src)">`;
                     } else {
                         bubble.textContent = message.content;
                     }
@@ -779,6 +785,27 @@
             var days = Math.floor(hours / 24);
             return days + "d";
         }
+
+        // --- TRÌNH XEM ẢNH ---
+        function openImageViewer(src) {
+            const overlay = document.getElementById('image-viewer-overlay');
+            const img = document.getElementById('image-viewer-img');
+            img.src = src;
+            overlay.classList.add('active');
+        }
+
+        function closeImageViewer() {
+            const overlay = document.getElementById('image-viewer-overlay');
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                document.getElementById('image-viewer-img').src = '';
+            }, 300); // Xóa src sau khi hiệu ứng mờ kết thúc
+        }
+        
+        // Đóng bằng phím ESC
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") closeImageViewer();
+        });
 
         // Tự động cập nhật thời gian "Hoạt động X phút trước" mỗi phút
         setInterval(() => {
