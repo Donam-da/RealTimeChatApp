@@ -567,6 +567,23 @@ body {
     font-weight: bold; cursor: pointer; margin-top: 15px;
 }
 .save-btn:hover { background: #0073e6; }
+.save-btn:disabled {
+    background-color: #ccc; cursor: not-allowed;
+}
+
+/* Input trong Modal đẹp hơn */
+.modal-input {
+    width: 100%; padding: 12px; margin-top: 5px;
+    border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; outline: none; transition: border 0.2s;
+    background-color: #f9f9f9;
+}
+.modal-input:focus { border-color: #0084ff; background-color: #fff; }
+
+.modal-label {
+    display: block; text-align: left; margin-bottom: 15px;
+    font-size: 14px; font-weight: 500; color: #333;
+}
 
 /* --- CROP AVATAR MODAL (Messenger Style) --- */
 .crop-modal {

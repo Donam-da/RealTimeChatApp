@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=4.8">
+    <link rel="stylesheet" href="style.css?v=5.5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -17,6 +17,7 @@
             <div id="my-avatar" class="my-avatar" onclick="toggleMyProfileDropdown()"></div>
             <div id="my-profile-dropdown" class="my-profile-dropdown">
                 <a href="#" onclick="showEditProfile()">Chỉnh sửa hồ sơ cá nhân</a>
+                <a href="#" onclick="showChangePassword()">Đổi mật khẩu</a>
                 <a href="#" onclick="logout()" style="border-top: 1px solid #eee; color: #d32f2f;">Đăng xuất</a>
             </div>
         </div>
@@ -71,8 +72,28 @@
                 </label>
             </div>
             <input type="text" id="edit-displayname" placeholder="Tên hiển thị" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
-            <input type="password" id="edit-password" placeholder="Mật khẩu mới (Để trống nếu không đổi)" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
             <button onclick="saveProfile()" class="save-btn">Lưu thay đổi</button>
+        </div>
+    </div>
+
+    <!-- Modal Đổi mật khẩu -->
+    <div id="change-password-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeChangePassword()">&times;</span>
+            <h2 style="margin-bottom: 20px;">Đổi mật khẩu</h2>
+            <label class="modal-label">
+                Mật khẩu hiện tại
+                <input type="password" id="current-password" placeholder="Nhập mật khẩu hiện tại" class="modal-input">
+            </label>
+            <label class="modal-label">
+                Mật khẩu mới
+                <input type="password" id="new-password" placeholder="Nhập mật khẩu mới" class="modal-input">
+            </label>
+            <label class="modal-label">
+                Xác nhận mật khẩu mới
+                <input type="password" id="confirm-password" placeholder="Nhập lại mật khẩu mới" class="modal-input">
+            </label>
+            <button onclick="savePassword()" class="save-btn">Cập nhật mật khẩu</button>
         </div>
     </div>
 
@@ -371,7 +392,6 @@
         function showEditProfile() {
             document.getElementById('edit-profile-modal').classList.remove('hidden');
             document.getElementById('edit-displayname').value = myDisplayName;
-            document.getElementById('edit-password').value = ''; // Reset mật khẩu
             pendingRawAvatar = null; // Reset ảnh tạm
             
             // Preview avatar hiện tại
@@ -385,6 +405,80 @@
         function closeEditProfile() {
             document.getElementById('edit-profile-modal').classList.add('hidden');
             pendingRawAvatar = null;
+        }
+
+        // --- ĐỔI MẬT KHẨU ---
+        function showChangePassword() {
+            document.getElementById('change-password-modal').classList.remove('hidden');
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            document.getElementById("my-profile-dropdown").classList.remove("show");
+        }
+
+        function closeChangePassword() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        function savePassword() {
+            const btn = document.querySelector('#change-password-modal .save-btn');
+            const originalText = "Cập nhật mật khẩu"; 
+            
+            // 1. Khóa nút ngay lập tức
+            btn.disabled = true;
+            btn.textContent = "Đang xử lý...";
+
+            try {
+                const currentPass = document.getElementById('current-password').value.trim();
+                const newPassword = document.getElementById('new-password').value.trim();
+                const confirmPass = document.getElementById('confirm-password').value.trim();
+
+                if (!currentPass || !newPassword || !confirmPass) throw new Error("Vui lòng nhập đầy đủ thông tin!");
+                if (newPassword !== confirmPass) throw new Error("Mật khẩu mới không khớp!");
+                if (!username) throw new Error("Không xác định được người dùng. Vui lòng đăng nhập lại!");
+
+                const updateData = { username: username, oldPassword: currentPass, newPassword: newPassword };
+
+                // Kiểm tra hỗ trợ AbortController (để tránh lỗi trên trình duyệt cũ)
+                let signal = null;
+                let timeoutId = null;
+                if (window.AbortController) {
+                    const controller = new AbortController();
+                    signal = controller.signal;
+                    timeoutId = setTimeout(() => controller.abort(), 10000);
+                }
+
+                fetch('/api/auth/change-password', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(updateData),
+                    signal: signal
+                }).then(res => {
+                    if (timeoutId) clearTimeout(timeoutId);
+                    if (res.ok) return res.text();
+                    if (res.status === 404) throw new Error("API chưa tồn tại. Vui lòng khởi động lại Server (Backend)!");
+                    return res.text().then(text => { throw new Error(text) });
+                }).then(msg => {
+                    alert(msg);
+                    closeChangePassword();
+                }).catch(err => {
+                    if (err.name === 'AbortError') {
+                        alert("Hết thời gian chờ! Server không phản hồi.");
+                    } else {
+                        console.error(err);
+                        alert("Lỗi: " + err.message);
+                    }
+                }).finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                });
+            } catch (e) {
+                // Bắt lỗi đồng bộ (ví dụ: lỗi biến, lỗi trình duyệt)
+                console.error("Lỗi client:", e);
+                alert(e.message);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
         }
 
         function onAvatarPreviewClick() {
@@ -412,11 +506,9 @@
 
         function saveProfile() {
             const newDisplayName = document.getElementById('edit-displayname').value.trim();
-            const newPassword = document.getElementById('edit-password').value.trim();
             const newAvatar = document.getElementById('edit-avatar-preview').dataset.newAvatar || null;
 
             const updateData = { username: username, displayName: newDisplayName };
-            if (newPassword) updateData.password = newPassword;
             if (newAvatar) updateData.avatar = newAvatar;
 
             fetch('/api/auth/update', {
@@ -425,7 +517,7 @@
                 if (res.ok) return res.json();
                 throw new Error("Lỗi cập nhật");
             }).then(updatedUser => {
-                alert("Cập nhật thành công!");
+                alert("Cập nhật hồ sơ thành công!");
                 myDisplayName = updatedUser.displayName;
                 if (updatedUser.avatar) myAvatarData = updatedUser.avatar;
                 

@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import java.util.Optional;
 import java.util.List;
+import java.util.Map;
 import java.time.LocalDateTime;
 
 @RestController
@@ -64,6 +65,26 @@ public class AuthController {
             }
             userRepository.save(user);
             return ResponseEntity.ok(user);
+        }
+        return ResponseEntity.badRequest().body("User not found");
+    }
+
+    // API Đổi mật khẩu (Mới - Có kiểm tra mật khẩu cũ)
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String oldPassword = request.get("oldPassword");
+        String newPassword = request.get("newPassword");
+
+        Optional<User> dbUser = userRepository.findByUsername(username);
+        if (dbUser.isPresent()) {
+            User user = dbUser.get();
+            if (!user.getPassword().equals(oldPassword)) {
+                return ResponseEntity.status(400).body("Mật khẩu hiện tại không đúng!");
+            }
+            user.setPassword(newPassword);
+            userRepository.save(user);
+            return ResponseEntity.ok("Đổi mật khẩu thành công!");
         }
         return ResponseEntity.badRequest().body("User not found");
     }
