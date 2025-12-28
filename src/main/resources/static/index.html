@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.0">
+    <link rel="stylesheet" href="style.css?v=7.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -664,8 +664,8 @@
             const sub = stompClient.subscribe(topic, (payload) => {
                 const msg = JSON.parse(payload.body);
                 drawMessage(msg, partnerUsername);
-                // Nếu nhận được tin nhắn CHAT từ người kia, báo đã xem ngay
-                if (msg.type === 'CHAT' && msg.sender !== username) {
+                // Nếu nhận được tin nhắn CHAT hoặc IMAGE từ người kia, báo đã xem ngay
+                if ((msg.type === 'CHAT' || msg.type === 'IMAGE') && msg.sender !== username) {
                     sendReadReceipt(partnerUsername, roomId);
                 }
                 // Nếu nhận được tin nhắn REVOKED (Thu hồi)
@@ -1108,11 +1108,22 @@
         }
 
         function addSeenIcon(container, partnerUsername) {
+            // Tìm user để lấy avatar thực tế
+            const user = allUsers.find(u => u.username === partnerUsername);
+            const avatarData = user ? user.avatar : null;
             var displayName = getDisplayName(partnerUsername);
+
             const icon = document.createElement('div');
             icon.className = 'seen-icon';
-            icon.style.backgroundColor = getAvatarColor(displayName);
-            icon.textContent = displayName.charAt(0);
+            icon.style.backgroundSize = 'cover';
+            icon.style.backgroundPosition = 'center';
+            if (avatarData) {
+                icon.style.backgroundImage = `url(${avatarData})`;
+                icon.style.backgroundColor = 'transparent';
+            } else {
+                icon.style.backgroundColor = getAvatarColor(displayName);
+                icon.textContent = displayName.charAt(0);
+            }
             container.appendChild(icon);
         }
 
