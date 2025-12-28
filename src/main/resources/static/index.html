@@ -737,7 +737,7 @@
             if (diffDays === 0) {
                 return `${hours}:${minutes}`;
             } else if (diffDays > 0 && diffDays < 7) {
-                var days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                var days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
                 return `${hours}:${minutes} ${days[d.getDay()]}`;
             } else {
                 var day = d.getDate().toString().padStart(2, '0');
