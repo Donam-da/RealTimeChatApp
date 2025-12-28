@@ -232,7 +232,7 @@ body {
 
 /* Dropdown Menu (Nút tam giác và menu xóa) */
 .dropdown { position: relative; display: inline-block; margin-left: 8px; }
-.dropdown-btn { background: none; border: none; color: white; cursor: pointer; font-size: 12px; padding: 0; }
+.dropdown-btn { background: none; border: none; color: white; cursor: pointer; padding: 0; display: flex; align-items: center; }
 .dropdown-content {
     display: none; position: absolute; top: 100%; left: 0;
     background-color: #fff; min-width: 140px;

@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=2.4">
+    <link rel="stylesheet" href="style.css?v=3.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -219,17 +219,21 @@
                             </div>
                             <div id="header-status-${partnerUsername}" class="${badgeClass}">${badgeContent}</div>
                         </div>
-                        <div style="display: flex; flex-direction: column;">
-                            <div style="display: flex; align-items: center;">
+                        <div style="display: flex; align-items: flex-start;">
+                            <div style="display: flex; flex-direction: column;">
                                 <span class="chat-window-title">${partnerName}</span>
-                                <div class="dropdown">
-                                    <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">&#9662;</button>
-                                    <div id="dropdown-${partnerUsername}" class="dropdown-content">
-                                        <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
-                                    </div>
+                                <span class="chat-window-status" id="status-${partnerUsername}">Đang tải...</span>
+                            </div>
+                            <div class="dropdown" style="margin-left: 2px; margin-top: 2px;">
+                                <button class="dropdown-btn" onclick="toggleDropdown('${partnerUsername}')">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M6 9l6 6 6-6"/>
+                                    </svg>
+                                </button>
+                                <div id="dropdown-${partnerUsername}" class="dropdown-content">
+                                    <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
                                 </div>
                             </div>
-                            <span class="chat-window-status" id="status-${partnerUsername}">Đang tải...</span>
                         </div>
                     </div>
                     <button class="close-chat-btn" onclick="closeChatWindow('${partnerUsername}')">&times;</button>
@@ -302,7 +306,7 @@
 
         // Đóng dropdown khi click ra ngoài
         window.onclick = function(event) {
-            if (!event.target.matches('.dropdown-btn')) {
+            if (!event.target.closest('.dropdown-btn')) {
                 var dropdowns = document.getElementsByClassName("dropdown-content");
                 for (var i = 0; i < dropdowns.length; i++) {
                     var openDropdown = dropdowns[i];
