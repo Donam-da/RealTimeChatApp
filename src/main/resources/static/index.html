@@ -4,15 +4,23 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.8">
+    <link rel="stylesheet" href="style.css?v=3.9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- Nút đăng xuất toàn cục -->
-    <button onclick="logout()" id="logout-btn" class="logout-btn hidden">Đăng xuất</button>
+    <!-- Header Controls (Logout + Profile) -->
+    <div id="header-controls" class="header-controls hidden">
+        <button onclick="logout()" class="logout-btn-header">Đăng xuất</button>
+        <div class="profile-container">
+            <div id="my-avatar" class="my-avatar" onclick="toggleMyProfileDropdown()"></div>
+            <div id="my-profile-dropdown" class="my-profile-dropdown">
+                <a href="#" onclick="showEditProfile()">Chỉnh sửa hồ sơ cá nhân</a>
+            </div>
+        </div>
+    </div>
 
     <div id="username-page">
         <div class="username-page-container">
@@ -103,7 +111,14 @@
                 myDisplayName = data.displayName || data.username; // Lưu tên hiển thị riêng
                 document.querySelector('#username-page').classList.add('hidden');
                 fetchUserList(); // Lấy danh sách user thay vì vào chat ngay
-                document.querySelector('#logout-btn').classList.remove('hidden'); // Hiện nút đăng xuất
+                
+                // Hiển thị header controls và cập nhật avatar
+                const headerControls = document.getElementById('header-controls');
+                headerControls.classList.remove('hidden');
+                const myAvatar = document.getElementById('my-avatar');
+                myAvatar.textContent = myDisplayName.charAt(0);
+                myAvatar.style.backgroundColor = getAvatarColor(myDisplayName);
+
                 connectWebSocket(); // Kết nối socket sẵn
             }).catch(err => alert("Sai tài khoản hoặc mật khẩu!"));
         }
@@ -122,7 +137,7 @@
             Object.keys(activeChats).forEach(u => closeChatWindow(u));
             activeChats = {};
             document.querySelector('#user-list-page').classList.add('hidden');
-            document.querySelector('#logout-btn').classList.add('hidden'); // Ẩn nút đăng xuất
+            document.getElementById('header-controls').classList.add('hidden'); // Ẩn header controls
             document.querySelector('#username-page').classList.remove('hidden');
         }
 
@@ -311,6 +326,15 @@
             document.getElementById("dropdown-" + username).classList.toggle("show");
         }
 
+        // --- PROFILE DROPDOWN ---
+        function toggleMyProfileDropdown() {
+            document.getElementById("my-profile-dropdown").classList.toggle("show");
+        }
+        
+        function showEditProfile() {
+            alert("Tính năng chỉnh sửa hồ sơ đang phát triển!");
+        }
+
         // Đóng dropdown khi click ra ngoài
         window.onclick = function(event) {
             if (!event.target.closest('.dropdown-btn')) {
@@ -320,6 +344,13 @@
                     if (openDropdown.classList.contains('show')) {
                         openDropdown.classList.remove('show');
                     }
+                }
+            }
+            // Đóng profile dropdown
+            if (!event.target.closest('.my-avatar')) {
+                const profileDropdown = document.getElementById('my-profile-dropdown');
+                if (profileDropdown && profileDropdown.classList.contains('show')) {
+                    profileDropdown.classList.remove('show');
                 }
             }
         }

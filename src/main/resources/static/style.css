@@ -146,26 +146,51 @@ body {
     text-align: center; word-break: break-word;
 }
 
-/* Nút đăng xuất */
-.logout-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+/* Header Controls (Góc trên phải) */
+.header-controls {
+    position: fixed;
+    top: 20px; right: 20px;
     z-index: 1000;
-    padding: 8px 16px;
-    background-color: #ffffff; /* Đổi thành màu trắng để nổi trên nền xám */
-    color: #1c1e21;
-    border: none;
-    border-radius: 20px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Thêm bóng đổ nhẹ */
+    display: flex; align-items: center; gap: 15px;
 }
-.logout-btn:hover {
-    background-color: #e4e6eb;
-    color: #d32f2f; /* Chuyển chữ sang màu đỏ khi di chuột vào */
+
+.logout-btn-header {
+    padding: 8px 16px;
+    background-color: #ffffff; color: #1c1e21;
+    border: none; border-radius: 20px;
+    font-weight: 600; cursor: pointer; font-size: 14px;
+    transition: background 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.logout-btn-header:hover { background-color: #e4e6eb; color: #d32f2f; }
+
+.my-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    color: white; font-weight: bold; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 2px solid #fff; user-select: none;
+    text-transform: uppercase;
+}
+.my-avatar:hover { opacity: 0.9; }
+
+.profile-container { position: relative; }
+
+.my-profile-dropdown {
+    display: none; position: absolute; top: 110%; right: 0;
+    background-color: #fff; min-width: 200px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 8px; overflow: hidden; z-index: 2000;
+    padding: 5px 0;
+}
+.my-profile-dropdown.show { display: block; }
+
+.my-profile-dropdown a {
+    display: block; padding: 10px 15px;
+    color: #050505; text-decoration: none; font-size: 14px;
+    transition: background 0.1s; text-align: left;
+}
+.my-profile-dropdown a:hover { background-color: #f0f2f5; }
 }
 
 /* --- GIAO DIỆN CHAT NHIỀU CỬA SỔ (CHAT HEADS) --- */
