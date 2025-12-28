@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.5">
+    <link rel="stylesheet" href="style.css?v=3.6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -790,6 +790,7 @@
         // --- TRÌNH XEM ẢNH ---
         var currentImageList = []; // Lưu danh sách ảnh hiện tại
         var currentImageIndex = 0;
+        var currentZoom = 1; // Biến lưu tỷ lệ zoom hiện tại
 
         function openImageViewer(imgElement) {
             const overlay = document.getElementById('image-viewer-overlay');
@@ -820,6 +821,10 @@
             
             // Cập nhật ảnh lớn
             img.src = currentImageList[currentImageIndex];
+            
+            // Reset zoom về mặc định khi đổi ảnh
+            currentZoom = 1;
+            img.style.transform = 'scale(1)';
 
             // Tạo danh sách thumbnail
             thumbnailsContainer.innerHTML = '';
@@ -871,6 +876,18 @@
                     }
                 }
             }
+        });
+
+        // --- ZOOM ẢNH BẰNG CON LĂN CHUỘT ---
+        const imgViewer = document.getElementById('image-viewer-img');
+        imgViewer.addEventListener('wheel', function(e) {
+            e.preventDefault(); // Ngăn cuộn trang web
+            
+            // Tính toán tỷ lệ zoom mới (deltaY âm là lăn lên/phóng to)
+            const delta = e.deltaY * -0.001; 
+            currentZoom = Math.min(Math.max(0.5, currentZoom + delta), 5); // Giới hạn từ 0.5x đến 5x
+            
+            this.style.transform = `scale(${currentZoom})`;
         });
 
         // --- KÉO ĐỂ CUỘN (DRAG TO SCROLL) CHO THUMBNAILS ---
