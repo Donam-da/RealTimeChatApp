@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=4.2">
+    <link rel="stylesheet" href="style.css?v=4.3">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -73,6 +73,28 @@
             <input type="text" id="edit-displayname" placeholder="Tên hiển thị" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
             <input type="password" id="edit-password" placeholder="Mật khẩu mới (Để trống nếu không đổi)" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
             <button onclick="saveProfile()" class="save-btn">Lưu thay đổi</button>
+        </div>
+    </div>
+
+    <!-- Modal Cắt ảnh (Crop Avatar) -->
+    <div id="crop-avatar-modal" class="crop-modal">
+        <div class="crop-content">
+            <div class="crop-header">Cập nhật ảnh đại diện</div>
+            <div class="crop-body" id="crop-body">
+                <img id="crop-image" src="" alt="Crop Image">
+                <div class="crop-mask"></div>
+            </div>
+            <div class="crop-controls">
+                <div class="zoom-slider-container">
+                    <span style="font-size: 12px;">−</span>
+                    <input type="range" id="zoom-slider" class="zoom-slider" min="0.1" max="3" step="0.01" value="1">
+                    <span style="font-size: 16px;">+</span>
+                </div>
+                <div class="crop-actions">
+                    <button class="btn-cancel" onclick="closeCropModal()">Hủy</button>
+                    <button class="btn-save" onclick="saveCrop()">Lưu</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -369,16 +391,10 @@
 
         function handleEditAvatarSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64 = e.target.result;
-                const preview = document.getElementById('edit-avatar-preview');
-                preview.style.backgroundImage = `url(${base64})`;
-                preview.textContent = '';
-                preview.dataset.newAvatar = base64; // Lưu tạm vào dataset
-            };
-            reader.readAsDataURL(file);
+            if (file) {
+                openCropModal(file);
+            }
+            event.target.value = ''; // Reset input để chọn lại cùng file nếu muốn
         }
 
         function saveProfile() {
@@ -1138,6 +1154,142 @@
                 renderUserList();
             }
         }, 60000);
+
+        // --- LOGIC CẮT ẢNH (CROP) ---
+        let cropScale = 1;
+        let cropX = 0, cropY = 0;
+        let isDraggingCrop = false;
+        let cropStartX = 0, cropStartY = 0;
+        let initialCropX = 0, initialCropY = 0;
+
+        function openCropModal(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('crop-image');
+                img.src = e.target.result;
+                img.onload = () => {
+                    // Tính toán scale ban đầu để ảnh vừa khít vòng tròn 300px
+                    // Vòng tròn mask đường kính 300px (radius 150px)
+                    const minDimension = Math.min(img.naturalWidth, img.naturalHeight);
+                    const initialScale = 300 / minDimension;
+                    
+                    cropScale = initialScale;
+                    cropX = 0; cropY = 0;
+                    
+                    // Cập nhật slider
+                    const slider = document.getElementById('zoom-slider');
+                    slider.min = initialScale * 0.5;
+                    slider.max = initialScale * 5;
+                    slider.value = cropScale;
+                    
+                    updateCropTransform();
+                    document.getElementById('crop-avatar-modal').classList.add('active');
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function closeCropModal() {
+            document.getElementById('crop-avatar-modal').classList.remove('active');
+        }
+
+        function updateCropTransform() {
+            const img = document.getElementById('crop-image');
+            img.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
+        }
+
+        // Zoom Slider
+        document.getElementById('zoom-slider').addEventListener('input', function(e) {
+            cropScale = parseFloat(e.target.value);
+            updateCropTransform();
+        });
+
+        // Dragging Logic
+        const cropBody = document.getElementById('crop-body');
+        cropBody.addEventListener('mousedown', function(e) {
+            isDraggingCrop = true;
+            cropStartX = e.clientX;
+            cropStartY = e.clientY;
+            initialCropX = cropX;
+            initialCropY = cropY;
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (!isDraggingCrop) return;
+            e.preventDefault();
+            const dx = e.clientX - cropStartX;
+            const dy = e.clientY - cropStartY;
+            cropX = initialCropX + dx;
+            cropY = initialCropY + dy;
+            updateCropTransform();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDraggingCrop) {
+                isDraggingCrop = false;
+                
+                // --- SNAP BACK LOGIC (Tự động đàn hồi về vị trí hợp lý) ---
+                const img = document.getElementById('crop-image');
+                const R = 150; // Bán kính vòng tròn crop (300px / 2)
+                
+                const currentWidth = img.naturalWidth * cropScale;
+                const currentHeight = img.naturalHeight * cropScale;
+                
+                // Tính toán giới hạn di chuyển
+                // Max X = (Width/2) - R. Nếu kéo quá giới hạn này, mép ảnh sẽ hở ra vùng đen.
+                let limitX = (currentWidth / 2) - R;
+                let limitY = (currentHeight / 2) - R;
+                
+                // Nếu ảnh nhỏ hơn vùng crop (do zoom nhỏ), snap về giữa (0)
+                if (limitX < 0) limitX = 0;
+                if (limitY < 0) limitY = 0;
+                
+                let newX = cropX;
+                let newY = cropY;
+                
+                if (cropX > limitX) newX = limitX;
+                else if (cropX < -limitX) newX = -limitX;
+                
+                if (cropY > limitY) newY = limitY;
+                else if (cropY < -limitY) newY = -limitY;
+                
+                if (newX !== cropX || newY !== cropY) {
+                    cropX = newX;
+                    cropY = newY;
+                    img.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    updateCropTransform();
+                    setTimeout(() => { img.style.transition = ''; }, 300);
+                }
+            }
+        });
+
+        function saveCrop() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = document.getElementById('crop-image');
+            
+            // Kích thước đầu ra (300x300)
+            canvas.width = 300; canvas.height = 300;
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 300, 300);
+            
+            // Vẽ ảnh đã transform vào canvas
+            // Dịch chuyển canvas về tâm (150,150) -> áp dụng transform của ảnh -> vẽ ảnh centered
+            ctx.translate(150, 150);
+            ctx.translate(cropX, cropY);
+            ctx.scale(cropScale, cropScale);
+            ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+            
+            const base64 = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Cập nhật preview
+            const preview = document.getElementById('edit-avatar-preview');
+            preview.style.backgroundImage = `url(${base64})`;
+            preview.textContent = '';
+            preview.dataset.newAvatar = base64;
+            
+            closeCropModal();
+        }
     </script>
 </body>
 </html>

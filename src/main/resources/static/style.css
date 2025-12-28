@@ -566,3 +566,62 @@ body {
     font-weight: bold; cursor: pointer; margin-top: 15px;
 }
 .save-btn:hover { background: #0073e6; }
+
+/* --- CROP AVATAR MODAL (Messenger Style) --- */
+.crop-modal {
+    position: fixed; z-index: 6000; left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    visibility: hidden; opacity: 0; transition: opacity 0.2s;
+}
+.crop-modal.active { visibility: visible; opacity: 1; }
+
+.crop-content {
+    background-color: #fff; width: 100%; max-width: 420px;
+    border-radius: 8px; overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.crop-header {
+    padding: 15px; border-bottom: 1px solid #eee;
+    font-weight: bold; font-size: 16px; text-align: center; color: #1c1e21;
+}
+
+.crop-body {
+    position: relative;
+    width: 100%; height: 350px;
+    background-color: #000;
+    overflow: hidden;
+    cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+}
+.crop-body:active { cursor: grabbing; }
+
+#crop-image {
+    display: block; transform-origin: center;
+    user-select: none; pointer-events: none;
+    will-change: transform;
+}
+
+.crop-mask {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    /* Tạo lỗ tròn trong suốt ở giữa (đường kính 300px), xung quanh tối */
+    background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.6) 151px);
+    pointer-events: none;
+}
+
+.crop-controls {
+    padding: 15px; display: flex; flex-direction: column; gap: 15px; background: #fff;
+}
+.zoom-slider-container { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.zoom-slider { width: 80%; cursor: pointer; }
+
+.crop-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn-cancel {
+    background: #e4e6eb; color: #050505; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
+.btn-save {
+    background: #0084ff; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
