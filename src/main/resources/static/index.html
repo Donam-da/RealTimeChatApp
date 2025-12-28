@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=4.3">
+    <link rel="stylesheet" href="style.css?v=4.5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -85,11 +85,6 @@
                 <div class="crop-mask"></div>
             </div>
             <div class="crop-controls">
-                <div class="zoom-slider-container">
-                    <span style="font-size: 12px;">−</span>
-                    <input type="range" id="zoom-slider" class="zoom-slider" min="0.1" max="3" step="0.01" value="1">
-                    <span style="font-size: 16px;">+</span>
-                </div>
                 <div class="crop-actions">
                     <button class="btn-cancel" onclick="closeCropModal()">Hủy</button>
                     <button class="btn-save" onclick="saveCrop()">Lưu</button>
@@ -1161,6 +1156,8 @@
         let isDraggingCrop = false;
         let cropStartX = 0, cropStartY = 0;
         let initialCropX = 0, initialCropY = 0;
+        let cropMinScale = 0.1;
+        let cropMaxScale = 5;
 
         function openCropModal(file) {
             const reader = new FileReader();
@@ -1176,11 +1173,8 @@
                     cropScale = initialScale;
                     cropX = 0; cropY = 0;
                     
-                    // Cập nhật slider
-                    const slider = document.getElementById('zoom-slider');
-                    slider.min = initialScale * 0.5;
-                    slider.max = initialScale * 5;
-                    slider.value = cropScale;
+                    cropMinScale = initialScale * 0.5;
+                    cropMaxScale = initialScale * 5;
                     
                     updateCropTransform();
                     document.getElementById('crop-avatar-modal').classList.add('active');
@@ -1198,9 +1192,11 @@
             img.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
         }
 
-        // Zoom Slider
-        document.getElementById('zoom-slider').addEventListener('input', function(e) {
-            cropScale = parseFloat(e.target.value);
+        // Zoom bằng con lăn chuột
+        document.getElementById('crop-body').addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const delta = e.deltaY * -0.001;
+            cropScale = Math.min(Math.max(cropMinScale, cropScale + delta), cropMaxScale);
             updateCropTransform();
         });
 
