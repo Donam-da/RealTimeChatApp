@@ -26,4 +26,7 @@ public class ChatMessage {
     private String type; // CHAT, JOIN, LEAVE, IMAGE, READ, TYPING
     private LocalDateTime timestamp;
     private String status; // SENT, READ
+
+    @Column(columnDefinition = "TEXT")
+    private String deletedBy; // Lưu danh sách username đã xóa tin nhắn này phía họ (ngăn cách bởi dấu phẩy)
 }

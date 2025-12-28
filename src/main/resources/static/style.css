@@ -301,6 +301,7 @@ body {
 .my-message-container { 
     flex-direction: column; 
     align-items: flex-end; 
+    position: relative;
 }
 .other-message-container { justify-content: flex-start; align-items: flex-end; }
 
@@ -334,6 +335,42 @@ body {
     color: #050505; 
     border-bottom-left-radius: 4px; 
     border: 1px solid #e4e6eb; 
+}
+
+/* --- MESSAGE OPTIONS (3 DOTS) --- */
+.message-content:hover .msg-options-btn { display: flex; }
+
+.msg-options-btn {
+    display: none; /* Ẩn mặc định */
+    align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background-color: #f0f2f5; color: #65676b;
+    cursor: pointer; margin: 0 5px;
+    align-self: center; /* Căn giữa theo chiều dọc so với bong bóng chat */
+    font-weight: bold; font-size: 14px;
+    transition: background 0.2s;
+    position: relative;
+}
+.msg-options-btn:hover { background-color: #e4e6eb; }
+
+/* Dropdown menu cho tin nhắn */
+.msg-dropdown {
+    position: absolute; background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border-radius: 8px; z-index: 100;
+    min-width: 100px; overflow: hidden;
+    display: none;
+}
+.msg-dropdown.show { display: block; }
+.msg-dropdown-item {
+    padding: 8px 12px; font-size: 13px; cursor: pointer; color: #050505;
+}
+.msg-dropdown-item:hover { background-color: #f0f2f5; }
+.msg-dropdown-item.danger { color: #d32f2f; }
+
+/* Tin nhắn đã thu hồi */
+.revoked-bubble {
+    background-color: #fff; border: 1px solid #ddd; color: #aaa; font-style: italic; font-size: 13px;
 }
 
 .sender-name { font-size: 11px; color: #65676b; margin-bottom: 4px; margin-left: 5px; }
@@ -659,3 +696,14 @@ body {
 .btn-save {
     background: #0084ff; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;
 }
+
+/* Modal xác nhận xóa tin nhắn */
+.remove-msg-options {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 15px;
+}
+.remove-option-btn {
+    padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-weight: 500; text-align: left;
+}
+.remove-option-btn:hover { background: #f5f5f5; }
+.remove-option-btn.danger { color: #d32f2f; border-color: #ffcdd2; }
+.remove-option-btn.danger:hover { background: #ffebee; }

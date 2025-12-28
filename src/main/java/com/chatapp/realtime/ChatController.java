@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @RestController
 @RequiredArgsConstructor
@@ -56,6 +58,39 @@ public class ChatController {
         messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
     }
 
+    // Xử lý Thu hồi tin nhắn (Unsend for everyone)
+    @MessageMapping("/chat.revoke")
+    public void revokeMessage(@Payload ChatMessage chatMessage) {
+        Optional<ChatMessage> msgOpt = messageRepository.findById(chatMessage.getId());
+        if (msgOpt.isPresent()) {
+            ChatMessage msg = msgOpt.get();
+            // Chỉ người gửi mới được thu hồi
+            if (msg.getSender().equals(chatMessage.getSender())) {
+                msg.setType("REVOKED");
+                msg.setContent("Tin nhắn đã bị thu hồi");
+                messageRepository.save(msg);
+                
+                // Gửi thông báo cập nhật cho mọi người
+                messagingTemplate.convertAndSend("/topic/" + msg.getRoomId(), msg);
+            }
+        }
+    }
+
+    // API Xóa tin nhắn phía người dùng (Remove for you)
+    @DeleteMapping("/api/messages/single/{messageId}")
+    public ResponseEntity<?> deleteMessageForUser(@PathVariable Long messageId, @RequestParam String username) {
+        Optional<ChatMessage> msgOpt = messageRepository.findById(messageId);
+        if (msgOpt.isPresent()) {
+            ChatMessage msg = msgOpt.get();
+            String currentDeleted = msg.getDeletedBy() == null ? "" : msg.getDeletedBy();
+            // Thêm username vào danh sách đã xóa (ngăn cách bằng dấu phẩy)
+            msg.setDeletedBy(currentDeleted + username + ",");
+            messageRepository.save(msg);
+            return ResponseEntity.ok("Đã xóa tin nhắn phía bạn");
+        }
+        return ResponseEntity.badRequest().body("Tin nhắn không tồn tại");
+    }
+
     // API lấy lịch sử tin nhắn của một phòng cụ thể
     @GetMapping("/api/messages/{roomId}")
     public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String roomId, @RequestParam String username) {
@@ -63,10 +98,19 @@ public class ChatController {
         Optional<ChatClearRecord> record = chatClearRecordRepository.findByUsernameAndRoomId(username, roomId);
         if (record.isPresent()) {
             // Nếu có, chỉ trả về tin nhắn SAU thời điểm xóa
-            return ResponseEntity.ok(messageRepository.findByRoomIdAndTimestampAfter(roomId, record.get().getClearedAt()));
+            List<ChatMessage> messages = messageRepository.findByRoomIdAndTimestampAfter(roomId, record.get().getClearedAt());
+            return ResponseEntity.ok(filterDeletedMessages(messages, username));
         }
         // Nếu chưa xóa bao giờ, trả về toàn bộ
-        return ResponseEntity.ok(messageRepository.findByRoomId(roomId));
+        List<ChatMessage> messages = messageRepository.findByRoomId(roomId);
+        return ResponseEntity.ok(filterDeletedMessages(messages, username));
+    }
+
+    // Helper: Lọc bỏ các tin nhắn mà user này đã chọn "Xóa ở phía bạn"
+    private List<ChatMessage> filterDeletedMessages(List<ChatMessage> messages, String username) {
+        return messages.stream()
+                .filter(m -> m.getDeletedBy() == null || !m.getDeletedBy().contains(username + ","))
+                .collect(Collectors.toList());
     }
 
     // API Xóa lịch sử chat (Chỉ ẩn với người dùng hiện tại)

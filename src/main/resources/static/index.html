@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=5.7">
+    <link rel="stylesheet" href="style.css?v=6.4">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -125,6 +125,18 @@
         </div>
     </div>
 
+    <!-- Modal Tùy chọn Gỡ tin nhắn -->
+    <div id="remove-msg-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeRemoveMsgModal()">&times;</span>
+            <h2 id="remove-msg-title" style="margin-bottom: 10px;">Bạn muốn gỡ tin nhắn này?</h2>
+            <p id="remove-msg-desc" style="font-size: 13px; color: #65676b; margin-bottom: 10px;">Tin nhắn sẽ bị gỡ khỏi đoạn chat.</p>
+            <div id="remove-msg-actions" class="remove-msg-options">
+                <!-- Các nút sẽ được thêm bằng JS tùy vào người gửi -->
+            </div>
+        </div>
+    </div>
+
     <script>
         var stompClient = null;
         var username = null; 
@@ -133,6 +145,7 @@
         var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
         var pendingRawAvatar = null; // Lưu ảnh gốc khi đang chỉnh sửa
+        var selectedMessageId = null; // ID tin nhắn đang chọn để xóa
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -655,6 +668,14 @@
                 if (msg.type === 'CHAT' && msg.sender !== username) {
                     sendReadReceipt(partnerUsername, roomId);
                 }
+                // Nếu nhận được tin nhắn REVOKED (Thu hồi)
+                if (msg.type === 'REVOKED') {
+                    // Reload lại chat để cập nhật giao diện (đơn giản nhất)
+                    // Hoặc tìm và update DOM nếu muốn tối ưu
+                    const msgArea = document.querySelector(`#msg-area-${partnerUsername}`);
+                    msgArea.innerHTML = '';
+                    loadChatHistory(roomId, partnerUsername, getDisplayName(partnerUsername));
+                }
                 // Xử lý sự kiện TYPING
                 if (msg.type === 'TYPING' && msg.sender !== username) {
                     showTypingIndicator(partnerUsername, msg.sender);
@@ -714,6 +735,7 @@
             if (!messageArea) return; // Nếu cửa sổ chat đã đóng thì bỏ qua
 
             var messageLi = document.createElement('li');
+            messageLi.id = `msg-${message.id}`; // Thêm ID để dễ dàng xóa
 
             // Xử lý sự kiện ĐÃ XEM (READ)
             if (message.type === 'READ') {
@@ -771,11 +793,19 @@
                 var contentContainer = document.createElement('div');
                 contentContainer.classList.add('message-content');
                 if (message.sender === username) {
+                    // Tin nhắn của mình
                     messageLi.classList.add('my-message-container');
+                    
+                    // Thêm nút 3 chấm (Options) TRƯỚC bong bóng chat (để nó hiện bên trái)
+                    if (message.type !== 'REVOKED') addMessageOptions(contentContainer, message, true);
+
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'my-bubble');
                     
-                    if (message.type === 'IMAGE') {
+                    if (message.type === 'REVOKED') {
+                        bubble.classList.add('revoked-bubble');
+                        bubble.textContent = message.content;
+                    } else if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
@@ -784,6 +814,7 @@
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     contentContainer.appendChild(bubble);
                 } else {
+                    // Tin nhắn của người khác
                     messageLi.classList.add('other-message-container');
                     var avatar = document.createElement('div');
                     avatar.classList.add('avatar');
@@ -791,7 +822,10 @@
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
                     
-                    if (message.type === 'IMAGE') {
+                    if (message.type === 'REVOKED') {
+                        bubble.classList.add('revoked-bubble');
+                        bubble.textContent = message.content;
+                    } else if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
@@ -799,11 +833,149 @@
                     }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     contentContainer.append(avatar, bubble);
+                    
+                    // Thêm nút 3 chấm SAU bong bóng chat (để nó hiện bên phải)
+                    if (message.type !== 'REVOKED') addMessageOptions(contentContainer, message, false);
                 }
                 messageLi.appendChild(contentContainer);
             }
             messageArea.appendChild(messageLi);
             messageArea.scrollTop = messageArea.scrollHeight;
+        }
+
+        // --- XỬ LÝ MESSAGE OPTIONS (3 CHẤM) ---
+        function addMessageOptions(container, message, isMyMessage) {
+            const btn = document.createElement('div');
+            btn.className = 'msg-options-btn';
+            btn.innerHTML = '•••';
+            
+            // Tạo dropdown menu
+            const dropdown = document.createElement('div');
+            dropdown.className = 'msg-dropdown';
+            dropdown.id = `msg-dropdown-${message.id}`;
+            
+            const removeOption = document.createElement('div');
+            removeOption.className = 'msg-dropdown-item danger';
+            removeOption.textContent = isMyMessage ? 'Thu hồi' : 'Gỡ';
+            removeOption.onclick = (e) => {
+                e.stopPropagation();
+                openRemoveMsgModal(message, isMyMessage);
+                dropdown.classList.remove('show');
+            };
+            
+            dropdown.appendChild(removeOption);
+            
+            // Xử lý click nút 3 chấm
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                // Đóng tất cả dropdown khác
+                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
+                
+                // Hiển thị dropdown này
+                dropdown.classList.toggle('show');
+                
+                // Định vị dropdown
+                dropdown.style.top = '25px';
+                if (isMyMessage) {
+                    dropdown.style.right = '30px'; // Hiện bên trái nút
+                } else {
+                    dropdown.style.right = '0'; // Hiện bên trái nút (để không bị khuất)
+                }
+            };
+
+            // Đóng dropdown khi chuột rời khỏi vùng tin nhắn
+            container.addEventListener('mouseleave', () => {
+                dropdown.classList.remove('show');
+            });
+
+            container.appendChild(btn);
+            btn.appendChild(dropdown); // Gắn dropdown vào trong nút để dễ định vị
+        }
+
+        // Đóng dropdown tin nhắn khi click ra ngoài
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.msg-options-btn')) {
+                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
+            }
+        });
+
+        // --- MODAL GỠ TIN NHẮN ---
+        function openRemoveMsgModal(message, isMyMessage) {
+            selectedMessageId = message.id;
+            const modal = document.getElementById('remove-msg-modal');
+            const title = document.getElementById('remove-msg-title');
+            const desc = document.getElementById('remove-msg-desc');
+            const actionsDiv = document.getElementById('remove-msg-actions');
+            actionsDiv.innerHTML = '';
+
+            // Nếu là tin nhắn của mình -> Có quyền Thu hồi
+            if (isMyMessage) {
+                title.textContent = "Bạn muốn gỡ tin nhắn này?";
+                desc.textContent = "Tin nhắn sẽ bị gỡ khỏi đoạn chat.";
+
+                const unsendBtn = document.createElement('div');
+                unsendBtn.className = 'remove-option-btn danger';
+                unsendBtn.innerHTML = '<b>Thu hồi với mọi người</b><br><span style="font-size:11px; font-weight:normal">Tin nhắn sẽ bị thu hồi phía mọi người.</span>';
+                unsendBtn.onclick = () => {
+                    if (stompClient) {
+                        stompClient.send("/app/chat.revoke", {}, JSON.stringify(message));
+                    }
+                    closeRemoveMsgModal();
+                };
+                actionsDiv.appendChild(unsendBtn);
+
+                // Tùy chọn Xóa ở phía bạn (cho người gửi)
+                const deleteForMeBtn = document.createElement('div');
+                deleteForMeBtn.className = 'remove-option-btn';
+                deleteForMeBtn.innerHTML = '<b>Thu hồi với bạn</b><br><span style="font-size:11px; font-weight:normal; color:#65676b">Gỡ tin nhắn này khỏi danh sách của bạn.</span>';
+                deleteForMeBtn.onclick = () => deleteMessageForMe(message);
+                actionsDiv.appendChild(deleteForMeBtn);
+            } else {
+                // Nếu là tin nhắn của người khác -> Chỉ có Gỡ
+                title.textContent = "Gỡ ở phía bạn";
+                desc.textContent = "Tin nhắn này sẽ bị gỡ khỏi thiết bị của bạn, nhưng vẫn hiển thị với các thành viên khác trong đoạn chat.";
+
+                const btnContainer = document.createElement('div');
+                btnContainer.style.display = 'flex';
+                btnContainer.style.justifyContent = 'flex-end';
+                btnContainer.style.gap = '10px';
+                btnContainer.style.marginTop = '10px';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn-cancel';
+                cancelBtn.textContent = 'Hủy';
+                cancelBtn.onclick = closeRemoveMsgModal;
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = 'btn-save';
+                confirmBtn.textContent = 'Gỡ';
+                confirmBtn.onclick = () => deleteMessageForMe(message);
+
+                btnContainer.appendChild(cancelBtn);
+                btnContainer.appendChild(confirmBtn);
+                actionsDiv.appendChild(btnContainer);
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function deleteMessageForMe(message) {
+            fetch(`/api/messages/single/${message.id}?username=${username}`, { method: 'DELETE' })
+                .then(res => {
+                    if (res.ok) {
+                        // Xóa tin nhắn khỏi giao diện ngay lập tức
+                        const msgEl = document.getElementById(`msg-${message.id}`);
+                        if (msgEl) {
+                            msgEl.remove();
+                        }
+                    }
+                });
+            closeRemoveMsgModal();
+        }
+
+        function closeRemoveMsgModal() {
+            document.getElementById('remove-msg-modal').classList.add('hidden');
+            selectedMessageId = null;
         }
 
         function addDateSeparator(timestamp, partnerUsername) {
@@ -1442,5 +1614,9 @@
             closeCropModal();
         }
     </script>
+</body>
+</html>cript>
+</body>
+</html>cript>
 </body>
 </html>
