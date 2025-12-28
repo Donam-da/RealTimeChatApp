@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.1">
+    <link rel="stylesheet" href="style.css?v=3.5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -47,6 +47,7 @@
     <div id="image-viewer-overlay" onclick="closeImageViewer()">
         <button class="viewer-close-btn">&times;</button>
         <img id="image-viewer-img" src="" alt="Full Screen Image" onclick="event.stopPropagation()">
+        <div id="image-viewer-thumbnails" class="viewer-thumbnails" onclick="event.stopPropagation()"></div>
     </div>
 
     <script>
@@ -506,7 +507,7 @@
                     
                     if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this.src)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
                         bubble.textContent = message.content;
                     }
@@ -523,7 +524,7 @@
                     
                     if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this.src)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
                         bubble.textContent = message.content;
                     }
@@ -787,11 +788,60 @@
         }
 
         // --- TRÌNH XEM ẢNH ---
-        function openImageViewer(src) {
+        var currentImageList = []; // Lưu danh sách ảnh hiện tại
+        var currentImageIndex = 0;
+
+        function openImageViewer(imgElement) {
             const overlay = document.getElementById('image-viewer-overlay');
             const img = document.getElementById('image-viewer-img');
-            img.src = src;
+            const thumbnailsContainer = document.getElementById('image-viewer-thumbnails');
+            
+            // 1. Tìm cửa sổ chat chứa ảnh này để lấy tất cả ảnh trong đó
+            const chatBody = imgElement.closest('.chat-window-body');
+            if (chatBody) {
+                // Lấy tất cả thẻ img có class chat-image trong cửa sổ này
+                const images = chatBody.querySelectorAll('.chat-image');
+                currentImageList = Array.from(images).map(i => i.src);
+                currentImageIndex = currentImageList.indexOf(imgElement.src);
+            } else {
+                // Fallback nếu không tìm thấy context (hiếm khi xảy ra)
+                currentImageList = [imgElement.src];
+                currentImageIndex = 0;
+            }
+
+            // 2. Hiển thị ảnh chính
+            updateImageViewerDisplay();
             overlay.classList.add('active');
+        }
+
+        function updateImageViewerDisplay() {
+            const img = document.getElementById('image-viewer-img');
+            const thumbnailsContainer = document.getElementById('image-viewer-thumbnails');
+            
+            // Cập nhật ảnh lớn
+            img.src = currentImageList[currentImageIndex];
+
+            // Tạo danh sách thumbnail
+            thumbnailsContainer.innerHTML = '';
+            currentImageList.forEach((src, index) => {
+                const thumb = document.createElement('img');
+                thumb.src = src;
+                thumb.className = `viewer-thumb ${index === currentImageIndex ? 'active' : ''}`;
+                thumb.draggable = false; // Ngăn trình duyệt tự động kéo ảnh (native drag)
+                thumb.onclick = () => {
+                    currentImageIndex = index;
+                    updateImageViewerDisplay();
+                };
+                thumbnailsContainer.appendChild(thumb);
+            });
+            
+            // Tự động cuộn thumbnail active vào giữa
+            setTimeout(() => {
+                const activeThumb = thumbnailsContainer.querySelector('.active');
+                if (activeThumb) {
+                    activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }, 10);
         }
 
         function closeImageViewer() {
@@ -804,7 +854,55 @@
         
         // Đóng bằng phím ESC
         document.addEventListener('keydown', function(event) {
-            if (event.key === "Escape") closeImageViewer();
+            const overlay = document.getElementById('image-viewer-overlay');
+            if (overlay.classList.contains('active')) {
+                if (event.key === "Escape") closeImageViewer();
+                // Hỗ trợ phím mũi tên trái/phải để chuyển ảnh
+                if (event.key === "ArrowLeft") {
+                    if (currentImageIndex > 0) {
+                        currentImageIndex--;
+                        updateImageViewerDisplay();
+                    }
+                }
+                if (event.key === "ArrowRight") {
+                    if (currentImageIndex < currentImageList.length - 1) {
+                        currentImageIndex++;
+                        updateImageViewerDisplay();
+                    }
+                }
+            }
+        });
+
+        // --- KÉO ĐỂ CUỘN (DRAG TO SCROLL) CHO THUMBNAILS ---
+        const slider = document.getElementById('image-viewer-thumbnails');
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        slider.addEventListener('mousedown', (e) => {
+            isDown = true;
+            slider.classList.add('grabbing');
+            startX = e.pageX - slider.offsetLeft;
+            scrollLeft = slider.scrollLeft;
+            e.preventDefault(); // Ngăn hành vi mặc định (bôi đen, kéo ảnh) để tránh lỗi dính chuột
+        });
+
+        slider.addEventListener('mouseleave', () => {
+            isDown = false;
+            slider.classList.remove('grabbing');
+        });
+
+        slider.addEventListener('mouseup', () => {
+            isDown = false;
+            slider.classList.remove('grabbing');
+        });
+
+        slider.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - slider.offsetLeft;
+            const walk = (x - startX) * 2; // Tốc độ cuộn (nhân 2 để nhanh hơn)
+            slider.scrollLeft = scrollLeft - walk;
         });
 
         // Tự động cập nhật thời gian "Hoạt động X phút trước" mỗi phút

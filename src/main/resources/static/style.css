@@ -453,7 +453,8 @@ body {
     top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.9); /* Nền đen mờ */
     z-index: 3000; /* Cao hơn mọi thứ khác */
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; /* Xếp dọc để ảnh ở trên, list ở dưới */
+    align-items: center; justify-content: center;
     opacity: 0; visibility: hidden;
     transition: opacity 0.3s, visibility 0.3s;
 }
@@ -461,7 +462,7 @@ body {
     opacity: 1; visibility: visible;
 }
 #image-viewer-img {
-    max-width: 95%; max-height: 95%;
+    max-width: 90%; max-height: 80%; /* Giảm chiều cao để nhường chỗ cho list ảnh */
     object-fit: contain;
     border-radius: 4px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -476,3 +477,28 @@ body {
     transition: background 0.2s;
 }
 .viewer-close-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+/* Danh sách ảnh thumbnail ở dưới cùng */
+.viewer-thumbnails {
+    width: fit-content; max-width: 740px; /* Giới hạn chiều rộng để hiển thị khoảng 10 ảnh */
+    height: 80px;
+    margin-top: 20px;
+    display: flex; align-items: center; justify-content: flex-start; /* Căn trái để cuộn đúng chuẩn */
+    gap: 10px;
+    overflow-x: auto; /* Cho phép cuộn ngang */
+    padding: 0 20px;
+    scrollbar-width: none; /* Firefox: Ẩn thanh cuộn */
+    cursor: grab; /* Con trỏ hình bàn tay */
+    user-select: none; /* Ngăn bôi đen khi kéo */
+}
+.viewer-thumbnails::-webkit-scrollbar { display: none; /* Chrome/Safari: Ẩn thanh cuộn */ }
+.viewer-thumbnails.grabbing { cursor: grabbing; }
+
+.viewer-thumb {
+    height: 60px; width: 60px; object-fit: cover;
+    border-radius: 6px; opacity: 0.4; cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s; flex-shrink: 0;
+}
+.viewer-thumb:hover { opacity: 0.8; }
+.viewer-thumb.active { opacity: 1; border-color: #0084ff; transform: scale(1.1); }
