@@ -50,18 +50,26 @@ public class AuthController {
 
     // API Cập nhật hồ sơ
     @PutMapping("/update")
-    public ResponseEntity<?> updateProfile(@RequestBody User updatedUser) {
-        Optional<User> dbUser = userRepository.findByUsername(updatedUser.getUsername());
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String displayName = request.get("displayName");
+        String avatar = request.get("avatar");
+        String currentPassword = request.get("currentPassword");
+
+        Optional<User> dbUser = userRepository.findByUsername(username);
         if (dbUser.isPresent()) {
             User user = dbUser.get();
-            if (updatedUser.getDisplayName() != null && !updatedUser.getDisplayName().isEmpty()) {
-                user.setDisplayName(updatedUser.getDisplayName());
+            
+            // Kiểm tra mật khẩu xác nhận
+            if (currentPassword == null || !user.getPassword().equals(currentPassword)) {
+                return ResponseEntity.status(401).body("Mật khẩu không đúng! Vui lòng nhập mật khẩu để xác nhận.");
             }
-            if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
-                user.setPassword(updatedUser.getPassword());
+
+            if (displayName != null && !displayName.isEmpty()) {
+                user.setDisplayName(displayName);
             }
-            if (updatedUser.getAvatar() != null) {
-                user.setAvatar(updatedUser.getAvatar());
+            if (avatar != null) {
+                user.setAvatar(avatar);
             }
             userRepository.save(user);
             return ResponseEntity.ok(user);

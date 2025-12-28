@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=5.5">
+    <link rel="stylesheet" href="style.css?v=5.6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -71,7 +71,14 @@
                     <input type="file" id="avatar-input" accept="image/*" onchange="handleEditAvatarSelect(event)" style="display: none;">
                 </label>
             </div>
-            <input type="text" id="edit-displayname" placeholder="Tên hiển thị" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
+            <label class="modal-label">
+                Tên hiển thị
+                <input type="text" id="edit-displayname" placeholder="Tên hiển thị" class="modal-input">
+            </label>
+            <label class="modal-label">
+                Xác nhận mật khẩu
+                <input type="password" id="edit-confirm-password" placeholder="Nhập mật khẩu để lưu thay đổi" class="modal-input">
+            </label>
             <button onclick="saveProfile()" class="save-btn">Lưu thay đổi</button>
         </div>
     </div>
@@ -392,6 +399,7 @@
         function showEditProfile() {
             document.getElementById('edit-profile-modal').classList.remove('hidden');
             document.getElementById('edit-displayname').value = myDisplayName;
+            document.getElementById('edit-confirm-password').value = '';
             pendingRawAvatar = null; // Reset ảnh tạm
             
             // Preview avatar hiện tại
@@ -506,16 +514,22 @@
 
         function saveProfile() {
             const newDisplayName = document.getElementById('edit-displayname').value.trim();
+            const confirmPassword = document.getElementById('edit-confirm-password').value.trim();
             const newAvatar = document.getElementById('edit-avatar-preview').dataset.newAvatar || null;
 
-            const updateData = { username: username, displayName: newDisplayName };
+            if (!confirmPassword) {
+                alert("Vui lòng nhập mật khẩu để xác nhận thay đổi!");
+                return;
+            }
+
+            const updateData = { username: username, displayName: newDisplayName, currentPassword: confirmPassword };
             if (newAvatar) updateData.avatar = newAvatar;
 
             fetch('/api/auth/update', {
                 method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updateData)
             }).then(res => {
                 if (res.ok) return res.json();
-                throw new Error("Lỗi cập nhật");
+                return res.text().then(text => { throw new Error(text) });
             }).then(updatedUser => {
                 alert("Cập nhật hồ sơ thành công!");
                 myDisplayName = updatedUser.displayName;
@@ -525,7 +539,7 @@
                 setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
                 pendingRawAvatar = null;
                 closeEditProfile();
-            }).catch(err => alert("Có lỗi xảy ra khi cập nhật!"));
+            }).catch(err => alert(err.message));
         }
 
         // Đóng dropdown khi click ra ngoài
