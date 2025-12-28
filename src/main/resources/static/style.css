@@ -413,4 +413,14 @@ body {
 /* Ảnh trong tin nhắn */
 .chat-image {
     max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer;
+    display: block; /* Loại bỏ khoảng trắng thừa phía dưới ảnh */
+}
+
+/* Loại bỏ khung background cho tin nhắn ảnh */
+.image-bubble, .bubble.image-bubble {
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
 }

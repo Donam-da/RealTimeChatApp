@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="style.css?v=2.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -480,6 +480,7 @@
                     bubble.classList.add('bubble', 'my-bubble');
                     
                     if (message.type === 'IMAGE') {
+                        bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
                     } else {
                         bubble.textContent = message.content;
@@ -496,6 +497,7 @@
                     bubble.classList.add('bubble', 'other-bubble');
                     
                     if (message.type === 'IMAGE') {
+                        bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="window.open(this.src)">`;
                     } else {
                         bubble.textContent = message.content;
