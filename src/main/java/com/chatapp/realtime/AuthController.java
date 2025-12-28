@@ -47,6 +47,27 @@ public class AuthController {
         return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu!");
     }
 
+    // API Cập nhật hồ sơ
+    @PutMapping("/update")
+    public ResponseEntity<?> updateProfile(@RequestBody User updatedUser) {
+        Optional<User> dbUser = userRepository.findByUsername(updatedUser.getUsername());
+        if (dbUser.isPresent()) {
+            User user = dbUser.get();
+            if (updatedUser.getDisplayName() != null && !updatedUser.getDisplayName().isEmpty()) {
+                user.setDisplayName(updatedUser.getDisplayName());
+            }
+            if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+                user.setPassword(updatedUser.getPassword());
+            }
+            if (updatedUser.getAvatar() != null) {
+                user.setAvatar(updatedUser.getAvatar());
+            }
+            userRepository.save(user);
+            return ResponseEntity.ok(user);
+        }
+        return ResponseEntity.badRequest().body("User not found");
+    }
+
     // API Đăng xuất
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestBody User user) {

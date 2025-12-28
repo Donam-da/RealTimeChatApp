@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=4.0">
+    <link rel="stylesheet" href="style.css?v=4.2">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -58,10 +58,29 @@
         <div id="image-viewer-thumbnails" class="viewer-thumbnails" onclick="event.stopPropagation()"></div>
     </div>
 
+    <!-- Modal Chỉnh sửa hồ sơ -->
+    <div id="edit-profile-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditProfile()">&times;</span>
+            <h2 style="margin-bottom: 10px;">Chỉnh sửa hồ sơ</h2>
+            <div class="edit-avatar-section">
+                <div id="edit-avatar-preview" class="avatar-preview"></div>
+                <label class="upload-btn">
+                    Đổi ảnh đại diện
+                    <input type="file" accept="image/*" onchange="handleEditAvatarSelect(event)" style="display: none;">
+                </label>
+            </div>
+            <input type="text" id="edit-displayname" placeholder="Tên hiển thị" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
+            <input type="password" id="edit-password" placeholder="Mật khẩu mới (Để trống nếu không đổi)" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
+            <button onclick="saveProfile()" class="save-btn">Lưu thay đổi</button>
+        </div>
+    </div>
+
     <script>
         var stompClient = null;
         var username = null; 
         var myDisplayName = null; // Biến lưu tên hiển thị của mình
+        var myAvatarData = null; // Biến lưu avatar của mình
         var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
 
@@ -109,15 +128,14 @@
                 // Ưu tiên sử dụng displayName (Tên hiển thị) nếu có, nếu không thì dùng username
                 username = data.username; // QUAN TRỌNG: Giữ nguyên username gốc để định danh
                 myDisplayName = data.displayName || data.username; // Lưu tên hiển thị riêng
+                myAvatarData = data.avatar; // Lưu avatar
                 document.querySelector('#username-page').classList.add('hidden');
                 fetchUserList(); // Lấy danh sách user thay vì vào chat ngay
                 
                 // Hiển thị header controls và cập nhật avatar
                 const headerControls = document.getElementById('header-controls');
                 headerControls.classList.remove('hidden');
-                const myAvatar = document.getElementById('my-avatar');
-                myAvatar.textContent = myDisplayName.charAt(0);
-                myAvatar.style.backgroundColor = getAvatarColor(myDisplayName);
+                setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
 
                 connectWebSocket(); // Kết nối socket sẵn
             }).catch(err => alert("Sai tài khoản hoặc mật khẩu!"));
@@ -133,6 +151,7 @@
                 stompClient.disconnect(); // Ngắt kết nối WebSocket
             }
             username = null;
+            myAvatarData = null;
             // Xóa tất cả cửa sổ chat
             Object.keys(activeChats).forEach(u => closeChatWindow(u));
             activeChats = {};
@@ -173,8 +192,7 @@
 
                 const avatar = document.createElement('div');
                 avatar.className = 'user-avatar-large';
-                avatar.textContent = name.charAt(0);
-                avatar.style.backgroundColor = getAvatarColor(name);
+                setElementAvatar(avatar, name, user.avatar);
 
                 // Badge trạng thái
                 const statusBadge = document.createElement('div');
@@ -236,9 +254,7 @@
                 <div class="chat-window-header">
                     <div style="display: flex; align-items: center;">
                         <div class="chat-header-avatar-container">
-                            <div class="chat-header-avatar" style="background-color: ${getAvatarColor(partnerName)}">
-                                ${partnerName.charAt(0)}
-                            </div>
+                            <div class="chat-header-avatar" id="header-avatar-${partnerUsername}"></div>
                             <div id="header-status-${partnerUsername}" class="${badgeClass}">${badgeContent}</div>
                         </div>
                         <div style="display: flex; align-items: flex-start;">
@@ -286,6 +302,9 @@
 
             document.body.appendChild(chatWindow);
             
+            // Cập nhật avatar cho header chat
+            setElementAvatar(document.getElementById(`header-avatar-${partnerUsername}`), partnerName, partnerUser.avatar);
+            
             // Lưu vào state
             activeChats[partnerUsername] = {
                 element: chatWindow,
@@ -332,7 +351,59 @@
         }
         
         function showEditProfile() {
-            alert("Tính năng chỉnh sửa hồ sơ đang phát triển!");
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+            document.getElementById('edit-displayname').value = myDisplayName;
+            document.getElementById('edit-password').value = ''; // Reset mật khẩu
+            
+            // Preview avatar hiện tại
+            const preview = document.getElementById('edit-avatar-preview');
+            setElementAvatar(preview, myDisplayName, myAvatarData);
+            
+            // Ẩn dropdown profile
+            document.getElementById("my-profile-dropdown").classList.remove("show");
+        }
+
+        function closeEditProfile() {
+            document.getElementById('edit-profile-modal').classList.add('hidden');
+        }
+
+        function handleEditAvatarSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                const preview = document.getElementById('edit-avatar-preview');
+                preview.style.backgroundImage = `url(${base64})`;
+                preview.textContent = '';
+                preview.dataset.newAvatar = base64; // Lưu tạm vào dataset
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveProfile() {
+            const newDisplayName = document.getElementById('edit-displayname').value.trim();
+            const newPassword = document.getElementById('edit-password').value.trim();
+            const newAvatar = document.getElementById('edit-avatar-preview').dataset.newAvatar || null;
+
+            const updateData = { username: username, displayName: newDisplayName };
+            if (newPassword) updateData.password = newPassword;
+            if (newAvatar) updateData.avatar = newAvatar;
+
+            fetch('/api/auth/update', {
+                method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updateData)
+            }).then(res => {
+                if (res.ok) return res.json();
+                throw new Error("Lỗi cập nhật");
+            }).then(updatedUser => {
+                alert("Cập nhật thành công!");
+                myDisplayName = updatedUser.displayName;
+                if (updatedUser.avatar) myAvatarData = updatedUser.avatar;
+                
+                // Cập nhật UI ngay lập tức
+                setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
+                closeEditProfile();
+            }).catch(err => alert("Có lỗi xảy ra khi cập nhật!"));
         }
 
         // Đóng dropdown khi click ra ngoài
@@ -467,6 +538,21 @@
             return '#' + "00000".substring(0, 6 - c.length) + c;
         }
 
+        // Hàm helper để set avatar (ảnh hoặc chữ)
+        function setElementAvatar(el, name, avatarBase64) {
+            el.style.backgroundSize = 'cover';
+            el.style.backgroundPosition = 'center';
+            if (avatarBase64) {
+                el.style.backgroundImage = `url(${avatarBase64})`;
+                el.textContent = '';
+                el.style.backgroundColor = 'transparent';
+            } else {
+                el.style.backgroundImage = 'none';
+                el.textContent = name ? name.charAt(0) : '?';
+                el.style.backgroundColor = getAvatarColor(name || 'User');
+            }
+        }
+
         function getDisplayName(userId) {
             if (userId === username) return myDisplayName;
             const u = allUsers.find(user => user.username === userId);
@@ -527,6 +613,10 @@
                 messageLi.classList.add('event-message');
                 messageLi.textContent = message.sender + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
             } else {
+                // Lấy thông tin user để hiển thị avatar
+                const senderUser = allUsers.find(u => u.username === message.sender);
+                const senderAvatarData = (message.sender === username) ? myAvatarData : (senderUser ? senderUser.avatar : null);
+
                 var senderDisplayName = getDisplayName(message.sender);
                 var timeString = formatTime(message.timestamp); // Lấy giờ:phút
                 var contentContainer = document.createElement('div');
@@ -548,8 +638,7 @@
                     messageLi.classList.add('other-message-container');
                     var avatar = document.createElement('div');
                     avatar.classList.add('avatar');
-                    avatar.textContent = senderDisplayName.charAt(0); // Lấy chữ cái đầu của tên hiển thị
-                    avatar.style.backgroundColor = getAvatarColor(senderDisplayName);
+                    setElementAvatar(avatar, senderDisplayName, senderAvatarData);
                     var bubble = document.createElement('div');
                     bubble.classList.add('bubble', 'other-bubble');
                     

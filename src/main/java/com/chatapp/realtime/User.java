@@ -26,6 +26,10 @@ public class User {
     @Column(name = "display_name")
     private String displayName;
 
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatar;
+
     private String status; // ONLINE, OFFLINE
     private LocalDateTime lastActive;
 }
