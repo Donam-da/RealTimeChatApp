@@ -554,6 +554,7 @@ body {
     background-color: #ddd; margin-bottom: 10px;
     background-size: cover; background-position: center;
     border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    cursor: pointer; position: relative; overflow: hidden;
 }
 .upload-btn {
     color: #0084ff; cursor: pointer; font-weight: 500; font-size: 14px;

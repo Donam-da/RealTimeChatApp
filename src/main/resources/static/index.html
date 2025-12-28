@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=4.5">
+    <link rel="stylesheet" href="style.css?v=4.8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -64,10 +64,10 @@
             <span class="close-modal" onclick="closeEditProfile()">&times;</span>
             <h2 style="margin-bottom: 10px;">Chỉnh sửa hồ sơ</h2>
             <div class="edit-avatar-section">
-                <div id="edit-avatar-preview" class="avatar-preview"></div>
+                <div id="edit-avatar-preview" class="avatar-preview" onclick="onAvatarPreviewClick()"></div>
                 <label class="upload-btn">
                     Đổi ảnh đại diện
-                    <input type="file" accept="image/*" onchange="handleEditAvatarSelect(event)" style="display: none;">
+                    <input type="file" id="avatar-input" accept="image/*" onchange="handleEditAvatarSelect(event)" style="display: none;">
                 </label>
             </div>
             <input type="text" id="edit-displayname" placeholder="Tên hiển thị" style="width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px;">
@@ -100,6 +100,7 @@
         var myAvatarData = null; // Biến lưu avatar của mình
         var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
+        var pendingRawAvatar = null; // Lưu ảnh gốc khi đang chỉnh sửa
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -371,6 +372,7 @@
             document.getElementById('edit-profile-modal').classList.remove('hidden');
             document.getElementById('edit-displayname').value = myDisplayName;
             document.getElementById('edit-password').value = ''; // Reset mật khẩu
+            pendingRawAvatar = null; // Reset ảnh tạm
             
             // Preview avatar hiện tại
             const preview = document.getElementById('edit-avatar-preview');
@@ -382,12 +384,28 @@
 
         function closeEditProfile() {
             document.getElementById('edit-profile-modal').classList.add('hidden');
+            pendingRawAvatar = null;
+        }
+
+        function onAvatarPreviewClick() {
+            if (pendingRawAvatar) {
+                openCropModal(pendingRawAvatar); // Mở lại ảnh gốc để cắt lại
+            } else if (myAvatarData) {
+                openCropModal(myAvatarData); // Chỉnh sửa ảnh hiện tại
+            } else {
+                document.getElementById('avatar-input').click(); // Chọn ảnh mới
+            }
         }
 
         function handleEditAvatarSelect(event) {
             const file = event.target.files[0];
             if (file) {
-                openCropModal(file);
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    pendingRawAvatar = e.target.result;
+                    openCropModal(pendingRawAvatar);
+                };
+                reader.readAsDataURL(file);
             }
             event.target.value = ''; // Reset input để chọn lại cùng file nếu muốn
         }
@@ -413,6 +431,7 @@
                 
                 // Cập nhật UI ngay lập tức
                 setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
+                pendingRawAvatar = null;
                 closeEditProfile();
             }).catch(err => alert("Có lỗi xảy ra khi cập nhật!"));
         }
@@ -1159,11 +1178,9 @@
         let cropMinScale = 0.1;
         let cropMaxScale = 5;
 
-        function openCropModal(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
+        function openCropModal(imageSrc) {
                 const img = document.getElementById('crop-image');
-                img.src = e.target.result;
+                img.src = imageSrc;
                 img.onload = () => {
                     // Tính toán scale ban đầu để ảnh vừa khít vòng tròn 300px
                     // Vòng tròn mask đường kính 300px (radius 150px)
@@ -1173,14 +1190,12 @@
                     cropScale = initialScale;
                     cropX = 0; cropY = 0;
                     
-                    cropMinScale = initialScale * 0.5;
+                    cropMinScale = initialScale; // Không cho phép zoom nhỏ hơn khung hình
                     cropMaxScale = initialScale * 5;
                     
                     updateCropTransform();
                     document.getElementById('crop-avatar-modal').classList.add('active');
                 };
-            };
-            reader.readAsDataURL(file);
         }
 
         function closeCropModal() {
@@ -1196,7 +1211,28 @@
         document.getElementById('crop-body').addEventListener('wheel', function(e) {
             e.preventDefault();
             const delta = e.deltaY * -0.001;
-            cropScale = Math.min(Math.max(cropMinScale, cropScale + delta), cropMaxScale);
+            const newScale = Math.min(Math.max(cropMinScale, cropScale + delta), cropMaxScale);
+            cropScale = newScale;
+
+            // --- TÍNH TOÁN GIỚI HẠN ĐỂ GIỮ ẢNH TRONG KHUNG KHI ZOOM ---
+            const img = document.getElementById('crop-image');
+            const R = 150; 
+            const currentWidth = img.naturalWidth * cropScale;
+            const currentHeight = img.naturalHeight * cropScale;
+            
+            let limitX = (currentWidth / 2) - R;
+            let limitY = (currentHeight / 2) - R;
+            
+            if (limitX < 0) limitX = 0;
+            if (limitY < 0) limitY = 0;
+            
+            // Clamp (Kẹp) vị trí để không bị lệch ra ngoài
+            if (cropX > limitX) cropX = limitX;
+            else if (cropX < -limitX) cropX = -limitX;
+            
+            if (cropY > limitY) cropY = limitY;
+            else if (cropY < -limitY) cropY = -limitY;
+
             updateCropTransform();
         });
 
