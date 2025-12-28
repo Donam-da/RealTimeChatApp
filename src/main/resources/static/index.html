@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=3.9">
+    <link rel="stylesheet" href="style.css?v=4.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -13,11 +13,11 @@
 
     <!-- Header Controls (Logout + Profile) -->
     <div id="header-controls" class="header-controls hidden">
-        <button onclick="logout()" class="logout-btn-header">Đăng xuất</button>
         <div class="profile-container">
             <div id="my-avatar" class="my-avatar" onclick="toggleMyProfileDropdown()"></div>
             <div id="my-profile-dropdown" class="my-profile-dropdown">
                 <a href="#" onclick="showEditProfile()">Chỉnh sửa hồ sơ cá nhân</a>
+                <a href="#" onclick="logout()" style="border-top: 1px solid #eee; color: #d32f2f;">Đăng xuất</a>
             </div>
         </div>
     </div>
