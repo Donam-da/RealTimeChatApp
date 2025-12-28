@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=2.1">
+    <link rel="stylesheet" href="style.css?v=2.4">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -192,6 +192,15 @@
             const partnerUsername = partnerUser.username;
             const partnerName = partnerUser.displayName || partnerUser.username;
 
+            // Chuẩn bị trạng thái ban đầu cho badge trên header
+            let badgeClass = 'status-badge header-status-badge';
+            let badgeContent = '';
+            if (partnerUser.status === 'ONLINE') {
+                badgeClass += ' status-online';
+            } else {
+                badgeClass += ' hidden';
+            }
+
             // Tạo khung chat
             const chatWindow = document.createElement('div');
             chatWindow.className = 'chat-window';
@@ -204,6 +213,12 @@
             chatWindow.innerHTML = `
                 <div class="chat-window-header">
                     <div style="display: flex; align-items: center;">
+                        <div class="chat-header-avatar-container">
+                            <div class="chat-header-avatar" style="background-color: ${getAvatarColor(partnerName)}">
+                                ${partnerName.charAt(0)}
+                            </div>
+                            <div id="header-status-${partnerUsername}" class="${badgeClass}">${badgeContent}</div>
+                        </div>
                         <div style="display: flex; flex-direction: column;">
                             <div style="display: flex; align-items: center;">
                                 <span class="chat-window-title">${partnerName}</span>
@@ -656,6 +671,20 @@
         function updateStatusUI(username, status, lastActive) {
             const statusEl = document.getElementById(`status-${username}`);
             if (!statusEl) return;
+
+            // Cập nhật badge trên header
+            const badgeEl = document.getElementById(`header-status-${username}`);
+            if (badgeEl) {
+                badgeEl.className = 'status-badge header-status-badge';
+                if (status === 'ONLINE') {
+                    badgeEl.classList.add('status-online');
+                    badgeEl.classList.remove('hidden');
+                    badgeEl.textContent = '';
+                } else {
+                    badgeEl.classList.add('hidden');
+                    badgeEl.textContent = '';
+                }
+            }
 
             // Cập nhật dữ liệu vào activeChats để setInterval có thể dùng lại
             if (activeChats[username]) {
