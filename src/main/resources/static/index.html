@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=5.6">
+    <link rel="stylesheet" href="style.css?v=5.7">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -16,6 +16,10 @@
         <div class="profile-container">
             <div id="my-avatar" class="my-avatar" onclick="toggleMyProfileDropdown()"></div>
             <div id="my-profile-dropdown" class="my-profile-dropdown">
+                <div class="dropdown-profile-header">
+                    <div id="dropdown-avatar" class="dropdown-avatar"></div>
+                    <div id="dropdown-displayname" class="dropdown-name"></div>
+                </div>
                 <a href="#" onclick="showEditProfile()">Chỉnh sửa hồ sơ cá nhân</a>
                 <a href="#" onclick="showChangePassword()">Đổi mật khẩu</a>
                 <a href="#" onclick="logout()" style="border-top: 1px solid #eee; color: #d32f2f;">Đăng xuất</a>
@@ -182,6 +186,10 @@
                 const headerControls = document.getElementById('header-controls');
                 headerControls.classList.remove('hidden');
                 setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
+                
+                // Cập nhật thông tin trong dropdown menu
+                setElementAvatar(document.getElementById('dropdown-avatar'), myDisplayName, myAvatarData);
+                document.getElementById('dropdown-displayname').textContent = myDisplayName;
 
                 connectWebSocket(); // Kết nối socket sẵn
             }).catch(err => alert("Sai tài khoản hoặc mật khẩu!"));
@@ -537,6 +545,11 @@
                 
                 // Cập nhật UI ngay lập tức
                 setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
+                
+                // Cập nhật thông tin trong dropdown menu
+                setElementAvatar(document.getElementById('dropdown-avatar'), myDisplayName, myAvatarData);
+                document.getElementById('dropdown-displayname').textContent = myDisplayName;
+
                 pendingRawAvatar = null;
                 closeEditProfile();
             }).catch(err => alert(err.message));
