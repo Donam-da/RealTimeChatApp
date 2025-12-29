@@ -415,7 +415,7 @@ body {
     z-index: 5;
 }
 .my-message-container .message-reactions-display { right: 0; }
-.other-message-container .message-reactions-display { left: 0; right: auto; }
+.other-message-container .message-reactions-display { right: 0 !important; left: auto !important; }
 
 /* Dropdown menu cho tin nhắn */
 .msg-dropdown {
