@@ -111,6 +111,44 @@ body {
     padding: 10px 15px; font-weight: bold; font-size: 24px; color: #050505;
 }
 
+/* Ô tìm kiếm trong menu chat */
+.chat-search-wrapper {
+    padding: 0 15px 10px 15px;
+    position: relative;
+}
+.chat-search-input {
+    width: 100%; height: 36px;
+    padding: 0 15px 0 36px; /* Chừa chỗ cho icon bên trái */
+    border-radius: 18px; border: none;
+    background-color: #f0f2f5; color: #050505;
+    font-size: 15px; outline: none;
+}
+.chat-search-icon {
+    position: absolute; left: 27px; top: 50%; transform: translateY(-50%);
+    color: #65676b; pointer-events: none;
+    display: flex; align-items: center;
+}
+
+/* Item "Tìm kiếm tin nhắn cho..." */
+.search-msg-item {
+    display: flex; align-items: center; padding: 10px 15px;
+    cursor: pointer; transition: background 0.2s;
+    border-radius: 8px; margin: 0 8px;
+}
+.search-msg-item:hover { background-color: #f0f2f5; }
+
+.search-msg-icon-container {
+    width: 56px; height: 56px; margin-right: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.search-msg-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    background-color: #e4e6eb; color: #050505;
+    display: flex; align-items: center; justify-content: center;
+}
+.search-msg-text { font-size: 15px; color: #050505; }
+.search-msg-keyword { font-weight: 600; }
+
 .chat-list-items { overflow-y: auto; flex-grow: 1; }
 
 .chat-item {

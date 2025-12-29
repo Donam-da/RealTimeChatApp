@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
@@ -156,5 +158,27 @@ public class ChatController {
         chatClearRecordRepository.save(record);
         
         return ResponseEntity.ok("Đã xóa đoạn chat (phía bạn)");
+    }
+
+    // API Tìm kiếm tin nhắn (Trả về danh sách username của đối phương có tin nhắn khớp)
+    @GetMapping("/api/messages/search")
+    public ResponseEntity<List<String>> searchMessages(@RequestParam String username, @RequestParam String keyword) {
+        // 1. Tìm tất cả tin nhắn chứa từ khóa
+        List<ChatMessage> msgs = messageRepository.findByContentContainingIgnoreCase(keyword);
+        
+        // 2. Lọc ra các username đối phương trong các cuộc trò chuyện đó
+        Set<String> partners = new HashSet<>();
+        for (ChatMessage msg : msgs) {
+            String roomId = msg.getRoomId();
+            // Kiểm tra xem user hiện tại có trong phòng chat này không (roomId dạng user1_user2)
+            if (roomId != null && roomId.contains(username)) {
+                String[] parts = roomId.split("_");
+                if (parts.length == 2) {
+                    if (parts[0].equals(username)) partners.add(parts[1]);
+                    else if (parts[1].equals(username)) partners.add(parts[0]);
+                }
+            }
+        }
+        return ResponseEntity.ok(new ArrayList<>(partners));
     }
 }

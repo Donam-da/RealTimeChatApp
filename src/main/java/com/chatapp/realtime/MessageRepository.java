@@ -13,4 +13,7 @@ public interface MessageRepository extends JpaRepository<ChatMessage, Long> {
 
     // Xóa tin nhắn theo phòng chat
     void deleteByRoomId(String roomId);
+
+    // Tìm kiếm tin nhắn chứa nội dung (không phân biệt hoa thường)
+    List<ChatMessage> findByContentContainingIgnoreCase(String content);
 }

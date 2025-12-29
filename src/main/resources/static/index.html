@@ -22,6 +22,12 @@
             </div>
             <div id="chat-list-dropdown" class="chat-list-dropdown">
                 <div class="chat-list-header">Đoạn chat</div>
+                <div class="chat-search-wrapper">
+                    <div class="chat-search-icon">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    </div>
+                    <input type="text" class="chat-search-input" placeholder="Tìm kiếm trên Messenger" oninput="handleChatSearch(this.value)" onkeydown="if(event.key === 'Enter') performMessageSearch(this.value)">
+                </div>
                 <div id="chat-list-items" class="chat-list-items"></div>
             </div>
         </div>
@@ -247,50 +253,62 @@
                 });
         }
 
-        function renderUserList() {
+        // Hàm render danh sách user (có thể nhận danh sách đã lọc)
+        function renderUserList(usersToRender) {
             const list = document.querySelector('#chat-list-items');
             if (!list) return;
             list.innerHTML = '';
-            allUsers.forEach(user => {
-                const name = user.displayName || user.username;
-                
-                const item = document.createElement('div');
-                item.className = 'chat-item';
-                item.onclick = () => {
-                    startChat(user);
-                    toggleChatList(); // Đóng menu sau khi chọn
-                };
+            const users = usersToRender || allUsers; // Nếu không truyền tham số thì dùng allUsers
+            
+            if (users.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:#65676b; font-size:14px;">Không tìm thấy kết quả</div>';
+                return;
+            }
 
-                const avatarContainer = document.createElement('div');
-                avatarContainer.className = 'chat-item-avatar-container';
-
-                const avatar = document.createElement('div');
-                avatar.className = 'chat-item-avatar';
-                setElementAvatar(avatar, name, user.avatar);
-
-                // Badge trạng thái
-                const statusBadge = document.createElement('div');
-                statusBadge.className = 'status-badge';
-                if (user.status === 'ONLINE') statusBadge.classList.add('status-online');
-                else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
-
-                avatarContainer.append(avatar, statusBadge);
-                
-                const info = document.createElement('div');
-                info.className = 'chat-item-info';
-                
-                const nameEl = document.createElement('div');
-                nameEl.className = 'chat-item-name';
-                nameEl.textContent = name;
-                
-                const statusEl = document.createElement('div');
-                statusEl.className = 'chat-item-status';
-                statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
-
-                info.append(nameEl, statusEl);
-                item.append(avatarContainer, info);
-                list.appendChild(item);
+            users.forEach(user => {
+                list.appendChild(createChatUserItem(user));
             });
+        }
+
+        // Hàm tạo phần tử hiển thị user (để tái sử dụng)
+        function createChatUserItem(user) {
+            const name = user.displayName || user.username;
+            
+            const item = document.createElement('div');
+            item.className = 'chat-item';
+            item.onclick = () => {
+                startChat(user);
+                toggleChatList();
+            };
+
+            const avatarContainer = document.createElement('div');
+            avatarContainer.className = 'chat-item-avatar-container';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-item-avatar';
+            setElementAvatar(avatar, name, user.avatar);
+
+            const statusBadge = document.createElement('div');
+            statusBadge.className = 'status-badge';
+            if (user.status === 'ONLINE') statusBadge.classList.add('status-online');
+            else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
+
+            avatarContainer.append(avatar, statusBadge);
+            
+            const info = document.createElement('div');
+            info.className = 'chat-item-info';
+            
+            const nameEl = document.createElement('div');
+            nameEl.className = 'chat-item-name';
+            nameEl.textContent = name;
+            
+            const statusEl = document.createElement('div');
+            statusEl.className = 'chat-item-status';
+            statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
+
+            info.append(nameEl, statusEl);
+            item.append(avatarContainer, info);
+            return item;
         }
 
         function startChat(partnerUser) {
@@ -426,6 +444,55 @@
         // --- CHAT LIST DROPDOWN ---
         function toggleChatList() {
             document.getElementById("chat-list-dropdown").classList.toggle("show");
+        }
+
+        // --- TÌM KIẾM TRÊN MESSENGER ---
+        function handleChatSearch(keyword) {
+            // Không trim() ngay để giữ trải nghiệm gõ phím, chỉ trim khi xử lý
+            const searchTerm = keyword.trim();
+
+            if (!searchTerm) {
+                renderUserList(allUsers); // Nếu rỗng thì hiện lại tất cả
+                return;
+            }
+
+            const list = document.querySelector('#chat-list-items');
+            list.innerHTML = '';
+
+            // 1. Hiển thị mục "Tìm kiếm tin nhắn cho..."
+            const searchItem = document.createElement('div');
+            searchItem.className = 'search-msg-item';
+            searchItem.onclick = () => performMessageSearch(searchTerm);
+            
+            searchItem.innerHTML = `
+                <div class="search-msg-icon-container">
+                    <div class="search-msg-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="search-msg-text">Tìm kiếm tin nhắn cho <span class="search-msg-keyword">"${keyword}"</span></div>
+            `;
+            list.appendChild(searchItem);
+
+            // 2. Hiển thị danh sách người dùng khớp tên (Client-side)
+            const nameMatches = allUsers.filter(u => (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase()));
+            nameMatches.forEach(user => {
+                list.appendChild(createChatUserItem(user));
+            });
+        }
+
+        function performMessageSearch(keyword) {
+            if (!keyword.trim()) return;
+            
+            fetch(`/api/messages/search?username=${username}&keyword=${encodeURIComponent(keyword.trim())}`)
+                .then(res => res.json())
+                .then(partnerUsernames => {
+                    // Lấy object user từ danh sách username trả về
+                    const msgMatches = allUsers.filter(u => partnerUsernames.includes(u.username));
+                    renderUserList(msgMatches); // Render kết quả tìm kiếm tin nhắn
+                });
         }
 
         // --- DROPDOWN & DELETE CHAT ---

@@ -19,7 +19,6 @@ public class ChatMessage {
     private String roomId;
     private String sender;
     
-    @Lob
     @Column(columnDefinition = "LONGTEXT") // Quan trọng: Cho phép lưu chuỗi Base64 dài của ảnh
     private String content;
     
