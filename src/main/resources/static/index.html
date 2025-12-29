@@ -498,7 +498,16 @@
 
         // --- CHAT LIST DROPDOWN ---
         function toggleChatList() {
-            document.getElementById("chat-list-dropdown").classList.toggle("show");
+            const dropdown = document.getElementById("chat-list-dropdown");
+            const isShown = dropdown.classList.toggle("show");
+            
+            if (isShown) {
+                // Reset ô tìm kiếm
+                const searchInput = document.querySelector('.chat-search-input');
+                if (searchInput) searchInput.value = '';
+                // Hiển thị lại danh sách mặc định
+                renderUserList(allUsers);
+            }
         }
 
         // --- TÌM KIẾM TRÊN MESSENGER ---
