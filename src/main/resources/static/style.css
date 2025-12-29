@@ -181,6 +181,16 @@ body {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Icon đã xem trong danh sách chat */
+.seen-icon-list {
+    width: 14px; height: 14px; border-radius: 50%;
+    margin-left: 6px; flex-shrink: 0;
+    background-size: cover; background-position: center;
+    font-size: 9px; display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: bold;
+    box-shadow: 0 0 0 1px #fff; /* Viền trắng nhỏ để tách biệt */
+}
+
 /* Badge trạng thái chung */
 .status-badge {
     position: absolute; bottom: 0; right: 0;

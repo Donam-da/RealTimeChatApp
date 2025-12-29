@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.5">
+    <link rel="stylesheet" href="style.css?v=7.6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -272,7 +272,7 @@
             // Gọi song song 2 API: Lấy danh sách user và Lấy tin nhắn mới nhất
             Promise.all([
                 fetch('/api/auth/users').then(res => res.json()),
-                fetch(`/api/messages/latest-summaries?username=${username}`).then(res => res.json())
+                fetch(`/api/messages/latest-summaries?username=${username}&t=${new Date().getTime()}`).then(res => res.json())
             ]).then(([users, latestMsgsMap]) => {
                     allUsers = users.filter(u => u.username !== username); // Loại bỏ chính mình
                     
@@ -367,15 +367,35 @@
                 if (user.lastMessage.type === 'IMAGE') content = 'Đã gửi 1 ảnh';
                 if (user.lastMessage.type === 'REVOKED') content = 'Tin nhắn đã bị thu hồi';
                 
-                // Thêm prefix "Bạn:" nếu là tin nhắn mình gửi
-                const prefix = user.lastMessage.sender === username ? 'Bạn: ' : '';
-                
-                // Sử dụng getShortTime (ví dụ: 5p, 1h) cho gọn
+                const isMyMessage = user.lastMessage.sender === username;
+                const prefix = isMyMessage ? 'Bạn: ' : '';
                 const timeStr = getShortTime(user.lastMessage.timestamp);
+                const textContent = `${prefix}${content} · ${timeStr}`;
                 
-                statusEl.textContent = `${prefix}${content} · ${timeStr}`;
                 statusEl.style.color = '#65676b'; // Màu xám nhạt
-                // Có thể thêm logic bôi đậm nếu chưa xem (status !== READ) tại đây
+
+                // Nếu là tin nhắn của mình và đã được xem -> Hiển thị icon avatar nhỏ
+                if (isMyMessage && user.lastMessage.status === 'READ') {
+                    statusEl.style.display = 'flex';
+                    statusEl.style.alignItems = 'center';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.style.overflow = 'hidden';
+                    textSpan.style.textOverflow = 'ellipsis';
+                    textSpan.style.whiteSpace = 'nowrap';
+                    textSpan.style.flexGrow = '1';
+                    textSpan.textContent = textContent;
+                    
+                    const seenIcon = document.createElement('div');
+                    seenIcon.className = 'seen-icon-list';
+                    setElementAvatar(seenIcon, name, user.avatar);
+                    
+                    statusEl.appendChild(textSpan);
+                    statusEl.appendChild(seenIcon);
+                } else {
+                    statusEl.textContent = textContent;
+                    statusEl.style.display = 'block';
+                }
             } else {
                 statusEl.textContent = "Các bạn đã kết nối trên Messenger";
             }
@@ -1009,6 +1029,7 @@
             stompClient.connect({}, () => {
                 console.log("Connected");
                 subscribeToPresence(); // Lắng nghe trạng thái Online/Offline
+                subscribeToNotifications(); // Lắng nghe thông báo (tin mới, đã xem)
             }, onError); 
         }
 
@@ -1032,6 +1053,47 @@
                             renderUserList();
                         }
                     }
+                }
+            });
+        }
+
+        // Lắng nghe thông báo cá nhân (để cập nhật danh sách chat Real-time)
+        function subscribeToNotifications() {
+            stompClient.subscribe('/topic/notifications/' + username, (payload) => {
+                const msg = JSON.parse(payload.body);
+                
+                // Tìm user tương ứng trong danh sách
+                // Nếu là tin nhắn đến: sender là partner
+                // Nếu là READ: sender là partner (người đọc)
+                const partnerUsername = msg.sender;
+                const user = allUsers.find(u => u.username === partnerUsername);
+                
+                if (user) {
+                    if (msg.type === 'READ') {
+                        // Nếu partner đã đọc tin nhắn của mình -> Cập nhật trạng thái
+                        if (user.lastMessage && user.lastMessage.sender === username) {
+                            user.lastMessage.status = 'READ';
+                        }
+                    } else if (msg.type === 'CHAT' || msg.type === 'IMAGE' || msg.type === 'REVOKED') {
+                        // Tin nhắn mới -> Cập nhật lastMessage
+                        user.lastMessage = msg;
+                    }
+                    
+                    // Sắp xếp lại danh sách: Người có tin mới/tương tác mới lên đầu
+                    allUsers.sort((a, b) => {
+                        const timeA = a.lastMessage ? parseDate(a.lastMessage.timestamp).getTime() : 0;
+                        const timeB = b.lastMessage ? parseDate(b.lastMessage.timestamp).getTime() : 0;
+                        return timeB - timeA;
+                    });
+
+                    // Render lại danh sách nếu đang mở
+                    const chatList = document.getElementById('chat-list-dropdown');
+                    if (chatList && chatList.classList.contains('show')) {
+                        renderUserList();
+                    }
+                } else {
+                    // Nếu là user mới chưa có trong list -> Tải lại toàn bộ
+                    fetchUserList();
                 }
             });
         }

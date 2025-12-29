@@ -40,6 +40,8 @@ public class ChatController {
         // 2. Gửi tin nhắn đến ĐÚNG topic của phòng đó (ví dụ: /topic/nam_tuan)
         // Client nào đang subscribe topic này mới nhận được tin nhắn
         messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
+        
+        sendNotificationToPartner(chatMessage);
     }
 
     // Xử lý thông báo "Đã xem"
@@ -58,6 +60,8 @@ public class ChatController {
 
         // 2. Gửi sự kiện READ cho client để cập nhật UI
         messagingTemplate.convertAndSend("/topic/" + chatMessage.getRoomId(), chatMessage);
+        
+        sendNotificationToPartner(chatMessage);
     }
 
     // Xử lý thông báo "Đang soạn tin"
@@ -277,5 +281,14 @@ public class ChatController {
         String nfdNormalizedString = Normalizer.normalize(input, Normalizer.Form.NFD);
         Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
         return pattern.matcher(nfdNormalizedString).replaceAll("").toLowerCase().replace("đ", "d");
+    }
+
+    // Helper: Gửi thông báo cập nhật danh sách chat cho đối phương
+    private void sendNotificationToPartner(ChatMessage msg) {
+        String[] parts = msg.getRoomId().split("_");
+        if (parts.length == 2) {
+            String partner = parts[0].equals(msg.getSender()) ? parts[1] : parts[0];
+            messagingTemplate.convertAndSend("/topic/notifications/" + partner, msg);
+        }
     }
 }
