@@ -13,6 +13,19 @@
 
     <!-- Header Controls (Logout + Profile) -->
     <div id="header-controls" class="header-controls hidden">
+        <!-- Nút Chat (Messenger Style) -->
+        <div class="chat-menu-container">
+            <div id="chat-menu-btn" class="chat-list-btn" onclick="toggleChatList()">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.03 2 11C2 13.87 3.43 16.43 5.75 18.04C5.99 18.21 6.14 18.5 6.14 18.8V21.53C6.14 22.13 6.82 22.49 7.28 22.13L9.82 20.15C10.02 19.99 10.28 19.93 10.53 19.97C11.01 20.05 11.5 20.09 12 20.09C17.52 20.09 22 16.06 22 11.09C22 6.03 17.52 2 12 2ZM13.3 14.3L11 11.8L6.6 14.3L11.4 9.2L13.7 11.7L18.1 9.2L13.3 14.3Z" />
+                </svg>
+            </div>
+            <div id="chat-list-dropdown" class="chat-list-dropdown">
+                <div class="chat-list-header">Đoạn chat</div>
+                <div id="chat-list-items" class="chat-list-items"></div>
+            </div>
+        </div>
+
         <div class="profile-container">
             <div id="my-avatar" class="my-avatar" onclick="toggleMyProfileDropdown()"></div>
             <div id="my-profile-dropdown" class="my-profile-dropdown">
@@ -45,14 +58,6 @@
                 <button onclick="register()" class="accent username-submit" style="background-color: #0084ff;">Tạo tài khoản</button>
                 <p class="toggle-text">Đã có tài khoản? <span onclick="showLogin()">Quay lại Đăng nhập</span></p>
             </div>
-        </div>
-    </div>
-
-    <!-- Màn hình danh sách người dùng -->
-    <div id="user-list-page" class="hidden">
-        <h2 class="title" style="margin-bottom: 20px;">Chọn người để chat</h2>
-        <div id="user-grid" class="user-grid">
-            <!-- Các icon user sẽ được thêm vào đây bằng JS -->
         </div>
     </div>
 
@@ -222,7 +227,6 @@
             // Xóa tất cả cửa sổ chat
             Object.keys(activeChats).forEach(u => closeChatWindow(u));
             activeChats = {};
-            document.querySelector('#user-list-page').classList.add('hidden');
             document.getElementById('header-controls').classList.add('hidden'); // Ẩn header controls
             document.querySelector('#username-page').classList.remove('hidden');
         }
@@ -240,25 +244,28 @@
                         }
                     });
                     renderUserList();
-                    document.querySelector('#user-list-page').classList.remove('hidden');
                 });
         }
 
         function renderUserList() {
-            const grid = document.querySelector('#user-grid');
-            grid.innerHTML = '';
+            const list = document.querySelector('#chat-list-items');
+            if (!list) return;
+            list.innerHTML = '';
             allUsers.forEach(user => {
                 const name = user.displayName || user.username;
-                const card = document.createElement('div');
-                card.className = 'user-card';
-                card.onclick = () => startChat(user);
+                
+                const item = document.createElement('div');
+                item.className = 'chat-item';
+                item.onclick = () => {
+                    startChat(user);
+                    toggleChatList(); // Đóng menu sau khi chọn
+                };
 
-                // Container bọc avatar để định vị chấm trạng thái
                 const avatarContainer = document.createElement('div');
-                avatarContainer.className = 'user-avatar-container';
+                avatarContainer.className = 'chat-item-avatar-container';
 
                 const avatar = document.createElement('div');
-                avatar.className = 'user-avatar-large';
+                avatar.className = 'chat-item-avatar';
                 setElementAvatar(avatar, name, user.avatar);
 
                 // Badge trạng thái
@@ -268,12 +275,21 @@
                 else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
 
                 avatarContainer.append(avatar, statusBadge);
-                const nameTag = document.createElement('div');
-                nameTag.className = 'user-name-display';
-                nameTag.textContent = name;
+                
+                const info = document.createElement('div');
+                info.className = 'chat-item-info';
+                
+                const nameEl = document.createElement('div');
+                nameEl.className = 'chat-item-name';
+                nameEl.textContent = name;
+                
+                const statusEl = document.createElement('div');
+                statusEl.className = 'chat-item-status';
+                statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
 
-                card.append(avatarContainer, nameTag);
-                grid.appendChild(card);
+                info.append(nameEl, statusEl);
+                item.append(avatarContainer, info);
+                list.appendChild(item);
             });
         }
 
@@ -405,6 +421,11 @@
                 const offset = 20 + (index * 340);
                 activeChats[key].element.style.right = offset + 'px';
             });
+        }
+
+        // --- CHAT LIST DROPDOWN ---
+        function toggleChatList() {
+            document.getElementById("chat-list-dropdown").classList.toggle("show");
         }
 
         // --- DROPDOWN & DELETE CHAT ---
@@ -586,6 +607,13 @@
                     profileDropdown.classList.remove('show');
                 }
             }
+            // Đóng chat list dropdown
+            if (!event.target.closest('.chat-list-btn') && !event.target.closest('.chat-list-dropdown')) {
+                const chatList = document.getElementById('chat-list-dropdown');
+                if (chatList && chatList.classList.contains('show')) {
+                    chatList.classList.remove('show');
+                }
+            }
         }
 
         function deleteChat(partnerUsername) {
@@ -647,8 +675,9 @@
                     if (userInList) {
                         userInList.status = msg.content;
                         userInList.lastActive = msg.timestamp;
-                        // Nếu đang ở trang danh sách thì render lại ngay để cập nhật chấm xanh
-                        if (!document.querySelector('#user-list-page').classList.contains('hidden')) {
+                        // Nếu menu chat đang mở thì render lại ngay để cập nhật chấm xanh
+                        const chatList = document.getElementById('chat-list-dropdown');
+                        if (chatList && chatList.classList.contains('show')) {
                             renderUserList();
                         }
                     }
@@ -1584,8 +1613,9 @@
                     updateStatusUI(username, chat.status, chat.lastActive);
                 }
             });
-            // Cập nhật danh sách user (nếu đang hiển thị) để update thời gian offline (ví dụ 1p -> 2p)
-            if (!document.querySelector('#user-list-page').classList.contains('hidden')) {
+            // Cập nhật danh sách user (nếu đang mở menu) để update thời gian offline
+            const chatList = document.getElementById('chat-list-dropdown');
+            if (chatList && chatList.classList.contains('show')) {
                 renderUserList();
             }
         }, 60000);
