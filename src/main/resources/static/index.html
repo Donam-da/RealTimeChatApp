@@ -67,13 +67,6 @@
         </div>
     </div>
 
-    <!-- Trình xem ảnh toàn màn hình -->
-    <div id="image-viewer-overlay" onclick="closeImageViewer()">
-        <button class="viewer-close-btn">&times;</button>
-        <img id="image-viewer-img" src="" alt="Full Screen Image" onclick="event.stopPropagation()">
-        <div id="image-viewer-thumbnails" class="viewer-thumbnails" onclick="event.stopPropagation()"></div>
-    </div>
-
     <!-- Modal Chỉnh sửa hồ sơ -->
     <div id="edit-profile-modal" class="modal hidden">
         <div class="modal-content">
@@ -175,6 +168,13 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Trình xem ảnh toàn màn hình (Di chuyển xuống dưới cùng để hiển thị trên các overlay khác) -->
+    <div id="image-viewer-overlay" onclick="closeImageViewer()" style="z-index: 10000;">
+        <button class="viewer-close-btn">&times;</button>
+        <img id="image-viewer-img" src="" alt="Full Screen Image" onclick="event.stopPropagation()">
+        <div id="image-viewer-thumbnails" class="viewer-thumbnails" onclick="event.stopPropagation()"></div>
     </div>
 
     <script>
@@ -740,7 +740,7 @@
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="#0084ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
                     </div>
                 </div>
-                <ul class="search-chat-body" id="messenger-chat-body-ul" style="padding: 10px; flex-grow: 1;"></ul>
+                <ul class="search-chat-body" id="messenger-chat-body-ul" style="padding: 10px; flex-grow: 1; overflow-y: auto; overflow-x: hidden;"></ul>
                 <div class="chat-window-footer" style="border-top: 1px solid #ddd; padding: 10px;">
                     <div id="messenger-preview-container" class="image-preview-container">
                         <img id="messenger-preview-img" class="image-preview" src="" alt="Preview">
@@ -938,7 +938,7 @@
 
             if (message.type === 'IMAGE') {
                 bubble.classList.add('image-bubble');
-                bubble.innerHTML = `<img src="${message.content}" class="chat-image">`;
+                bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)" style="cursor: pointer;">`;
             } else if (message.type === 'REVOKED') {
                 bubble.classList.add('revoked-bubble');
                 bubble.textContent = message.content;
@@ -1513,7 +1513,7 @@
                         bubble.textContent = message.content;
                     } else if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)" style="cursor: pointer;">`;
                     } else {
                         // Xử lý Highlight từ khóa
                         let contentHtml = escapeHtml(message.content);
@@ -1547,7 +1547,7 @@
                         bubble.textContent = message.content;
                     } else if (message.type === 'IMAGE') {
                         bubble.classList.add('image-bubble');
-                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
+                        bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)" style="cursor: pointer;">`;
                     } else {
                         // Xử lý Highlight từ khóa
                         let contentHtml = escapeHtml(message.content);
@@ -2214,7 +2214,7 @@
             const thumbnailsContainer = document.getElementById('image-viewer-thumbnails');
             
             // 1. Tìm cửa sổ chat chứa ảnh này để lấy tất cả ảnh trong đó
-            const chatBody = imgElement.closest('.chat-window-body');
+            const chatBody = imgElement.closest('.chat-window-body') || imgElement.closest('.search-chat-body');
             if (chatBody) {
                 // Lấy tất cả thẻ img có class chat-image trong cửa sổ này
                 const images = chatBody.querySelectorAll('.chat-image');
