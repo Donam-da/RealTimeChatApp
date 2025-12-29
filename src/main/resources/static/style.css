@@ -911,7 +911,7 @@ body {
 .search-col-right {
     width: 300px; background: #fff;
     display: flex; flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden; /* Cố định header, chỉ cuộn danh sách bên dưới */
 }
 .search-snippets-header {
     padding: 15px; font-weight: 600; color: #65676b; font-size: 14px;
@@ -945,3 +945,18 @@ body {
 
 /* Highlight trong snippet */
 .snippet-highlight { background-color: #fff9c4; color: #050505; font-weight: bold; }
+
+/* Input tìm kiếm trong cột phải (Kết quả khớp) */
+.search-right-input-wrapper {
+    background-color: #f0f2f5;
+    border-radius: 20px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    color: #65676b;
+}
+.search-right-input {
+    border: none; background: transparent; outline: none;
+    width: 100%; font-size: 14px; color: #050505; margin-left: 8px;
+}
+.right-search-count { font-size: 13px; color: #65676b; font-weight: 600; }

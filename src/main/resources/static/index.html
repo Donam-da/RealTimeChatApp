@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.6">
+    <link rel="stylesheet" href="style.css?v=7.7">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -671,7 +671,16 @@
             const snippetsView = document.getElementById('search-snippets-view');
             
             chatView.innerHTML = `<div class="search-chat-header">Đoạn chat với ${partnerUser.displayName || partnerUser.username}</div><ul class="search-chat-body" id="search-chat-body-ul">Đang tải...</ul>`;
-            snippetsView.innerHTML = `<div class="search-snippets-header">Kết quả khớp</div>`;
+            snippetsView.innerHTML = `
+                <div class="search-snippets-header" style="display:flex; flex-direction:column; gap:10px; height:auto;">
+                    <div style="font-size:16px; color:#050505; margin-bottom:5px;">Kết quả khớp</div>
+                    <div class="search-right-input-wrapper">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="right-search-input" class="search-right-input" value="${escapeHtml(keyword)}" placeholder="Tìm kiếm...">
+                    </div>
+                    <div id="right-search-count" class="right-search-count"></div>
+                </div>
+                <div id="search-snippets-list" style="overflow-y: auto; flex-grow: 1;"></div>`;
 
             // 2. Tải lịch sử chat
             const myName = document.querySelector('#login-username').value.trim();
@@ -680,51 +689,65 @@
             fetch('/api/messages/' + roomId + '?username=' + username)
                 .then(res => res.json())
                 .then(messages => {
-                    const ul = document.getElementById('search-chat-body-ul');
-                    ul.innerHTML = '';
-                    
-                    // Render tin nhắn vào cột giữa (sử dụng hàm drawMessage nhưng target vào ul mới)
-                    // Chúng ta cần sửa drawMessage hoặc viết hàm render riêng. Để an toàn, viết hàm render riêng cho search view.
-                    messages.forEach(msg => renderSearchChatMessage(ul, msg, partnerUser.username, keyword));
+                    // Hàm render lại giao diện khi từ khóa thay đổi
+                    const render = (currentKey, isFirst = false) => {
+                        const ul = document.getElementById('search-chat-body-ul');
+                        const prevScroll = ul.scrollTop; // Lưu vị trí cuộn
+                        ul.innerHTML = '';
+                        
+                        // Render tin nhắn vào cột giữa
+                        messages.forEach(msg => renderSearchChatMessage(ul, msg, partnerUser.username, currentKey));
+                        
+                        // 3. Lọc và Render Snippets vào cột phải
+                        const list = document.getElementById('search-snippets-list');
+                        list.innerHTML = '';
+                        
+                        const keywordNorm = normalizeString(currentKey);
+                        const matches = messages.filter(m => {
+                            if (!currentKey.trim()) return false;
+                            return m.type === 'CHAT' && m.content && normalizeString(m.content).includes(keywordNorm);
+                        });
+                        
+                        document.getElementById('right-search-count').textContent = matches.length > 0 ? `${matches.length} kết quả` : 'Không có kết quả';
+                        
+                        matches.forEach(msg => {
+                            const snippet = document.createElement('div');
+                            snippet.className = 'snippet-item';
+                            
+                            const senderName = msg.sender === username ? 'Bạn' : (partnerUser.displayName || partnerUser.username);
+                            
+                            // Highlight từ khóa trong snippet
+                            let contentHtml = escapeHtml(msg.content);
+                            const regex = getVietnameseRegex(currentKey);
+                            contentHtml = contentHtml.replace(regex, '<span class="snippet-highlight">$1</span>');
 
-                    // 3. Lọc và Render Snippets vào cột phải
-                    // Sử dụng hàm chuẩn hóa để tìm kiếm không phân biệt dấu (đồng bộ với Database)
-                    const keywordNorm = normalizeString(keyword);
-                    const matches = messages.filter(m => {
-                        return m.type === 'CHAT' && // Chỉ lấy tin nhắn văn bản (khớp với Backend)
-                               m.content && 
-                               normalizeString(m.content).includes(keywordNorm);
-                    });
-                    
-                    matches.forEach(msg => {
-                        const snippet = document.createElement('div');
-                        snippet.className = 'snippet-item';
+                            snippet.innerHTML = `
+                                <div class="snippet-sender">${senderName}</div>
+                                <div class="snippet-content">${contentHtml}</div>
+                                <div class="snippet-time">${formatFullDate(msg.timestamp)}</div>
+                            `;
+                            
+                            snippet.onclick = () => {
+                                const targetMsg = document.getElementById(`search-msg-${msg.id}`);
+                                if (targetMsg) {
+                                    targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            };
+                            list.appendChild(snippet);
+                        });
                         
-                        const senderName = msg.sender === username ? 'Bạn' : (partnerUser.displayName || partnerUser.username);
-                        
-                        // Highlight từ khóa trong snippet
-                        let contentHtml = escapeHtml(msg.content);
-                        const regex = getVietnameseRegex(keyword);
-                        contentHtml = contentHtml.replace(regex, '<span class="snippet-highlight">$1</span>');
+                        // Cuộn xuống cuối nếu là lần đầu, ngược lại giữ nguyên vị trí
+                        if (isFirst) ul.scrollTop = ul.scrollHeight;
+                        else ul.scrollTop = prevScroll;
+                    };
 
-                        snippet.innerHTML = `
-                            <div class="snippet-sender">${senderName}</div>
-                            <div class="snippet-content">${contentHtml}</div>
-                            <div class="snippet-time">${formatFullDate(msg.timestamp)}</div>
-                        `;
-                        
-                        snippet.onclick = () => {
-                            // Scroll cột giữa đến tin nhắn này
-                            const targetMsg = document.getElementById(`search-msg-${msg.id}`);
-                            if (targetMsg) {
-                                targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        };
-                        snippetsView.appendChild(snippet);
-                    });
+                    // Render lần đầu
+                    render(keyword, true);
                     
-                    // Cuộn xuống cuối cột giữa mặc định
-                    ul.scrollTop = ul.scrollHeight;
+                    // Lắng nghe sự kiện nhập liệu ở ô tìm kiếm bên phải
+                    document.getElementById('right-search-input').addEventListener('input', (e) => {
+                        render(e.target.value);
+                    });
                 });
         }
 
