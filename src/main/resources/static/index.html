@@ -378,6 +378,14 @@
                 const textContent = `${prefix}${content} · ${timeStr}`;
                 
                 statusEl.style.color = '#65676b'; // Màu xám nhạt
+                // Nếu tin nhắn cuối là của đối phương và chưa đọc -> Hiển thị đậm
+                if (!isMyMessage && user.lastMessage.status !== 'READ') {
+                    statusEl.style.fontWeight = '700';
+                    statusEl.style.color = '#050505';
+                } else {
+                    statusEl.style.fontWeight = 'normal';
+                    statusEl.style.color = '#65676b';
+                }
 
                 // Nếu là tin nhắn của mình và đã được xem -> Hiển thị icon avatar nhỏ
                 if (isMyMessage && user.lastMessage.status === 'READ') {
