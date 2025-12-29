@@ -377,18 +377,38 @@
                 const timeStr = getShortTime(user.lastMessage.timestamp);
                 const textContent = `${prefix}${content} · ${timeStr}`;
                 
-                statusEl.style.color = '#65676b'; // Màu xám nhạt
-                // Nếu tin nhắn cuối là của đối phương và chưa đọc -> Hiển thị đậm
+                // Reset style mặc định
+                statusEl.style.fontWeight = 'normal';
+                statusEl.style.color = '#65676b';
+                statusEl.style.display = 'block';
+
+                // Nếu tin nhắn cuối là của đối phương và chưa đọc -> Hiển thị đậm + Chấm xanh
                 if (!isMyMessage && user.lastMessage.status !== 'READ') {
                     statusEl.style.fontWeight = '700';
                     statusEl.style.color = '#050505';
-                } else {
-                    statusEl.style.fontWeight = 'normal';
-                    statusEl.style.color = '#65676b';
-                }
+                    statusEl.style.display = 'flex';
+                    statusEl.style.alignItems = 'center';
 
+                    const textSpan = document.createElement('span');
+                    textSpan.style.overflow = 'hidden';
+                    textSpan.style.textOverflow = 'ellipsis';
+                    textSpan.style.whiteSpace = 'nowrap';
+                    textSpan.style.flexGrow = '1';
+                    textSpan.textContent = textContent;
+
+                    const blueDot = document.createElement('div');
+                    blueDot.style.width = '12px';
+                    blueDot.style.height = '12px';
+                    blueDot.style.borderRadius = '50%';
+                    blueDot.style.backgroundColor = '#0084ff';
+                    blueDot.style.marginLeft = '10px';
+                    blueDot.style.flexShrink = '0';
+
+                    statusEl.appendChild(textSpan);
+                    statusEl.appendChild(blueDot);
+                } 
                 // Nếu là tin nhắn của mình và đã được xem -> Hiển thị icon avatar nhỏ
-                if (isMyMessage && user.lastMessage.status === 'READ') {
+                else if (isMyMessage && user.lastMessage.status === 'READ') {
                     statusEl.style.display = 'flex';
                     statusEl.style.alignItems = 'center';
                     
@@ -407,7 +427,6 @@
                     statusEl.appendChild(seenIcon);
                 } else {
                     statusEl.textContent = textContent;
-                    statusEl.style.display = 'block';
                 }
             } else {
                 statusEl.textContent = "Các bạn đã kết nối trên Messenger";
