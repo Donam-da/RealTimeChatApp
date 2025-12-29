@@ -188,6 +188,7 @@
         var selectedMessageId = null; // ID tin nhắn đang chọn để xóa
         var currentSearchKeyword = ""; // Lưu từ khóa tìm kiếm hiện tại
         var activeFloatingMenu = null; // Menu đang mở (Reaction bar hoặc Dropdown)
+        var floatingMenuTimeout = null; // Timeout để đóng menu khi di chuột ra ngoài
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -1425,14 +1426,13 @@
             };
 
             // Đóng dropdown khi chuột rời khỏi vùng tin nhắn
-            let timeoutId;
             container.addEventListener('mouseleave', () => {
-                timeoutId = setTimeout(() => {
-                    // Không tự động đóng menu floating để tránh trải nghiệm tệ khi di chuột
-                }, 500); // Thêm độ trễ 0.5s để người dùng kịp thao tác
+                floatingMenuTimeout = setTimeout(() => {
+                    closeFloatingMenus();
+                }, 500);
             });
             container.addEventListener('mouseenter', () => {
-                if (timeoutId) clearTimeout(timeoutId);
+                if (floatingMenuTimeout) clearTimeout(floatingMenuTimeout);
             });
 
             actionsContainer.appendChild(btn);
@@ -1469,6 +1469,14 @@
             
             document.body.appendChild(bar);
             activeFloatingMenu = bar;
+
+            // Giữ menu khi di chuột vào
+            bar.addEventListener('mouseenter', () => {
+                if (floatingMenuTimeout) clearTimeout(floatingMenuTimeout);
+            });
+            bar.addEventListener('mouseleave', () => {
+                floatingMenuTimeout = setTimeout(closeFloatingMenus, 500);
+            });
 
             // Tính toán vị trí
             // Ưu tiên định vị theo bong bóng chat (bubble) để hiển thị reaction bar ngay trên đầu tin nhắn
@@ -1510,6 +1518,14 @@
             document.body.appendChild(dropdown);
             activeFloatingMenu = dropdown;
             
+            // Giữ menu khi di chuột vào
+            dropdown.addEventListener('mouseenter', () => {
+                if (floatingMenuTimeout) clearTimeout(floatingMenuTimeout);
+            });
+            dropdown.addEventListener('mouseleave', () => {
+                floatingMenuTimeout = setTimeout(closeFloatingMenus, 500);
+            });
+
             // Tính toán vị trí
             const rect = targetBtn.getBoundingClientRect();
             const dropRect = dropdown.getBoundingClientRect();
