@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.4">
+    <link rel="stylesheet" href="style.css?v=7.5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -269,16 +269,30 @@
 
         // QUẢN LÝ DANH SÁCH USER
         function fetchUserList() {
-            fetch('/api/auth/users')
-                .then(res => res.json())
-                .then(users => {
-                    allUsers = users.filter(u => u.username !== document.querySelector('#login-username').value.trim()); // Loại bỏ chính mình
-                    // Cập nhật lại trạng thái cho các cửa sổ chat đang mở (nếu có)
+            // Gọi song song 2 API: Lấy danh sách user và Lấy tin nhắn mới nhất
+            Promise.all([
+                fetch('/api/auth/users').then(res => res.json()),
+                fetch(`/api/messages/latest-summaries?username=${username}`).then(res => res.json())
+            ]).then(([users, latestMsgsMap]) => {
+                    allUsers = users.filter(u => u.username !== username); // Loại bỏ chính mình
+                    
                     allUsers.forEach(u => {
+                        // Gán tin nhắn mới nhất vào object user
+                        u.lastMessage = latestMsgsMap[u.username];
+
+                        // Cập nhật lại trạng thái cho các cửa sổ chat đang mở (nếu có)
                         if (activeChats[u.username]) {
                             updateStatusUI(u.username, u.status, u.lastActive);
                         }
                     });
+
+                    // Sắp xếp: Người có tin nhắn mới nhất lên đầu
+                    allUsers.sort((a, b) => {
+                        const timeA = a.lastMessage ? parseDate(a.lastMessage.timestamp).getTime() : 0;
+                        const timeB = b.lastMessage ? parseDate(b.lastMessage.timestamp).getTime() : 0;
+                        return timeB - timeA;
+                    });
+
                     renderUserList();
                 });
         }
@@ -347,8 +361,23 @@
             
             if (matchCount !== undefined) {
                 statusEl.textContent = `${matchCount} tin nhắn trùng khớp`;
+            } else if (user.lastMessage) {
+                // Hiển thị tin nhắn gần nhất (Messenger Style)
+                let content = user.lastMessage.content;
+                if (user.lastMessage.type === 'IMAGE') content = 'Đã gửi 1 ảnh';
+                if (user.lastMessage.type === 'REVOKED') content = 'Tin nhắn đã bị thu hồi';
+                
+                // Thêm prefix "Bạn:" nếu là tin nhắn mình gửi
+                const prefix = user.lastMessage.sender === username ? 'Bạn: ' : '';
+                
+                // Sử dụng getShortTime (ví dụ: 5p, 1h) cho gọn
+                const timeStr = getShortTime(user.lastMessage.timestamp);
+                
+                statusEl.textContent = `${prefix}${content} · ${timeStr}`;
+                statusEl.style.color = '#65676b'; // Màu xám nhạt
+                // Có thể thêm logic bôi đậm nếu chưa xem (status !== READ) tại đây
             } else {
-                statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
+                statusEl.textContent = "Các bạn đã kết nối trên Messenger";
             }
 
             info.append(nameEl, statusEl);
@@ -505,8 +534,8 @@
                 // Reset ô tìm kiếm
                 const searchInput = document.querySelector('.chat-search-input');
                 if (searchInput) searchInput.value = '';
-                // Hiển thị lại danh sách mặc định
-                renderUserList(allUsers);
+                // Tải lại dữ liệu mới nhất (để cập nhật tin nhắn vừa gửi/nhận)
+                fetchUserList();
             }
         }
 

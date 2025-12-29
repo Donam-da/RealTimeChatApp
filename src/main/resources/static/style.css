@@ -172,12 +172,12 @@ body {
 .chat-item-info { flex-grow: 1; overflow: hidden; }
 
 .chat-item-name {
-    font-weight: 500; font-size: 15px; color: #050505;
+    font-weight: 500; font-size: 17px; color: #050505;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .chat-item-status {
-    font-size: 13px; color: #65676b;
+    font-size: 15px; color: #65676b;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 

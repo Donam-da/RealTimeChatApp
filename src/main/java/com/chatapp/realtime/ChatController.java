@@ -227,6 +227,50 @@ public class ChatController {
         return ResponseEntity.ok(results);
     }
 
+    // API Lấy tin nhắn mới nhất cho danh sách chat (Messenger Style)
+    @GetMapping("/api/messages/latest-summaries")
+    public ResponseEntity<Map<String, ChatMessage>> getLatestMessages(@RequestParam String username) {
+        // 1. Lấy tất cả tin nhắn liên quan đến user này
+        List<ChatMessage> allMsgs = messageRepository.findByRoomIdContaining(username);
+        
+        // Lấy danh sách mốc thời gian xóa chat
+        List<ChatClearRecord> clearRecords = chatClearRecordRepository.findByUsername(username);
+        Map<String, LocalDateTime> clearMap = clearRecords.stream()
+            .collect(Collectors.toMap(ChatClearRecord::getRoomId, ChatClearRecord::getClearedAt));
+            
+        // Map roomId -> Latest Message
+        Map<String, ChatMessage> latestMap = new HashMap<>();
+        
+        for (ChatMessage msg : allMsgs) {
+            // Bỏ qua tin nhắn đã xóa phía người dùng
+             if (msg.getDeletedBy() != null && msg.getDeletedBy().contains(username + ",")) {
+                continue;
+            }
+            
+            // Bỏ qua tin nhắn trước mốc xóa lịch sử
+            if (clearMap.containsKey(msg.getRoomId()) && msg.getTimestamp().isBefore(clearMap.get(msg.getRoomId()))) {
+                continue;
+            }
+            
+            String roomId = msg.getRoomId();
+            if (!latestMap.containsKey(roomId) || msg.getTimestamp().isAfter(latestMap.get(roomId).getTimestamp())) {
+                latestMap.put(roomId, msg);
+            }
+        }
+        
+        // Chuyển đổi key từ roomId sang username đối phương
+        Map<String, ChatMessage> result = new HashMap<>();
+        for (Map.Entry<String, ChatMessage> entry : latestMap.entrySet()) {
+            String[] parts = entry.getKey().split("_");
+            if (parts.length == 2) {
+                String partner = parts[0].equals(username) ? parts[1] : parts[0];
+                result.put(partner, entry.getValue());
+            }
+        }
+        
+        return ResponseEntity.ok(result);
+    }
+
     // Helper: Chuẩn hóa chuỗi (Bỏ dấu tiếng Việt, về chữ thường)
     private String normalizeString(String input) {
         if (input == null) return "";
