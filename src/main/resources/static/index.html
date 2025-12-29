@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.7">
+    <link rel="stylesheet" href="style.css?v=8.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -187,6 +187,7 @@
         var pendingRawAvatar = null; // Lưu ảnh gốc khi đang chỉnh sửa
         var selectedMessageId = null; // ID tin nhắn đang chọn để xóa
         var currentSearchKeyword = ""; // Lưu từ khóa tìm kiếm hiện tại
+        var activeFloatingMenu = null; // Menu đang mở (Reaction bar hoặc Dropdown)
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -1405,34 +1406,11 @@
             const reactBtn = document.createElement('div');
             reactBtn.className = 'reaction-btn';
             reactBtn.innerHTML = '☺'; // Hoặc dùng icon SVG
-            
-            // Thanh cảm xúc (Reaction Bar)
-            const reactionBar = document.createElement('div');
-            reactionBar.className = 'reaction-bar';
-            const emojis = ['👍', '❤️', '😆', '😮', '😢', '😠'];
-            
-            emojis.forEach(emoji => {
-                const span = document.createElement('span');
-                span.className = 'reaction-emoji';
-                span.textContent = emoji;
-                span.onclick = (e) => {
-                    e.stopPropagation();
-                    sendReaction(message, emoji);
-                    reactionBar.classList.remove('show');
-                };
-                reactionBar.appendChild(span);
-            });
-
             reactBtn.onclick = (e) => {
                 e.stopPropagation();
-                // Đóng các reaction bar khác
-                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
-                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
-                
-                reactionBar.classList.toggle('show');
+                openFloatingReactionBar(reactBtn, message);
             };
             
-            reactBtn.appendChild(reactionBar);
             actionsContainer.appendChild(reactBtn);
 
             // 2. Nút 3 chấm (Options)
@@ -1440,47 +1418,17 @@
             btn.className = 'msg-options-btn';
             btn.innerHTML = '•••';
             
-            // Tạo dropdown menu
-            const dropdown = document.createElement('div');
-            dropdown.className = 'msg-dropdown';
-            dropdown.id = `msg-dropdown-${message.id}`;
-            
-            const removeOption = document.createElement('div');
-            removeOption.className = 'msg-dropdown-item danger';
-            removeOption.textContent = isMyMessage ? 'Thu hồi' : 'Gỡ';
-            removeOption.onclick = (e) => {
-                e.stopPropagation();
-                openRemoveMsgModal(message, isMyMessage);
-                dropdown.classList.remove('show');
-            };
-            
-            dropdown.appendChild(removeOption);
-            
             // Xử lý click nút 3 chấm
             btn.onclick = (e) => {
                 e.stopPropagation();
-                // Đóng tất cả dropdown khác
-                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
-                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
-                
-                // Hiển thị dropdown này
-                dropdown.classList.toggle('show');
-                
-                // Định vị dropdown
-                dropdown.style.top = '25px';
-                if (isMyMessage) {
-                    dropdown.style.right = '30px'; // Hiện bên trái nút
-                } else {
-                    dropdown.style.right = '0'; // Hiện bên trái nút (để không bị khuất)
-                }
+                openFloatingMsgDropdown(btn, message, isMyMessage);
             };
 
             // Đóng dropdown khi chuột rời khỏi vùng tin nhắn
             let timeoutId;
             container.addEventListener('mouseleave', () => {
                 timeoutId = setTimeout(() => {
-                    dropdown.classList.remove('show');
-                    reactionBar.classList.remove('show');
+                    // Không tự động đóng menu floating để tránh trải nghiệm tệ khi di chuột
                 }, 500); // Thêm độ trễ 0.5s để người dùng kịp thao tác
             });
             container.addEventListener('mouseenter', () => {
@@ -1488,10 +1436,106 @@
             });
 
             actionsContainer.appendChild(btn);
-            btn.appendChild(dropdown); // Gắn dropdown vào trong nút để dễ định vị
             
             container.appendChild(actionsContainer);
         }
+
+        // --- QUẢN LÝ MENU NỔI (FLOATING MENUS) ---
+        function closeFloatingMenus() {
+            if (activeFloatingMenu) {
+                activeFloatingMenu.remove();
+                activeFloatingMenu = null;
+            }
+        }
+
+        function openFloatingReactionBar(targetBtn, message) {
+            closeFloatingMenus();
+            
+            const bar = document.createElement('div');
+            bar.className = 'floating-reaction-bar';
+            
+            const emojis = ['👍', '❤️', '😆', '😮', '😢', '😠'];
+            emojis.forEach(emoji => {
+                const span = document.createElement('span');
+                span.className = 'reaction-emoji';
+                span.textContent = emoji;
+                span.onclick = (e) => {
+                    e.stopPropagation();
+                    sendReaction(message, emoji);
+                    closeFloatingMenus();
+                };
+                bar.appendChild(span);
+            });
+            
+            document.body.appendChild(bar);
+            activeFloatingMenu = bar;
+
+            // Tính toán vị trí
+            // Ưu tiên định vị theo bong bóng chat (bubble) để hiển thị reaction bar ngay trên đầu tin nhắn
+            const contentEl = targetBtn.closest('.message-content');
+            const bubbleEl = contentEl ? contentEl.querySelector('.bubble') : null;
+            const rect = bubbleEl ? bubbleEl.getBoundingClientRect() : targetBtn.getBoundingClientRect();
+            const barRect = bar.getBoundingClientRect();
+            
+            let top = rect.top - barRect.height - 8; // Mặc định hiển thị bên trên bong bóng
+            let left = rect.left + (rect.width / 2) - (barRect.width / 2); // Căn giữa theo bong bóng
+            
+            // Nếu sát mép trên quá -> Hiển thị bên dưới bong bóng
+            if (top < 10) top = rect.bottom + 8;
+            
+            // Giới hạn trái phải
+            if (left < 10) left = 10;
+            if (left + barRect.width > window.innerWidth - 10) left = window.innerWidth - barRect.width - 10;
+            
+            bar.style.top = top + 'px';
+            bar.style.left = left + 'px';
+        }
+
+        function openFloatingMsgDropdown(targetBtn, message, isMyMessage) {
+            closeFloatingMenus();
+            
+            const dropdown = document.createElement('div');
+            dropdown.className = 'floating-msg-dropdown';
+            
+            const removeOption = document.createElement('div');
+            removeOption.className = 'msg-dropdown-item danger';
+            removeOption.textContent = isMyMessage ? 'Thu hồi' : 'Gỡ';
+            removeOption.onclick = (e) => {
+                e.stopPropagation();
+                openRemoveMsgModal(message, isMyMessage);
+                closeFloatingMenus();
+            };
+            dropdown.appendChild(removeOption);
+            
+            document.body.appendChild(dropdown);
+            activeFloatingMenu = dropdown;
+            
+            // Tính toán vị trí
+            const rect = targetBtn.getBoundingClientRect();
+            const dropRect = dropdown.getBoundingClientRect();
+            
+            // Ưu tiên hiển thị bên trên nút 3 chấm (để giống reaction bar và không bị che)
+            let top = rect.top - dropRect.height - 5;
+            let left = rect.left;
+            
+            // Nếu sát mép trên quá -> Hiển thị bên dưới
+            if (top < 10) {
+                top = rect.bottom + 5;
+            }
+            
+            // Căn chỉnh ngang
+            if (isMyMessage) {
+                left = rect.right - dropRect.width;
+            }
+            
+            dropdown.style.top = top + 'px';
+            dropdown.style.left = left + 'px';
+        }
+
+        // Đóng menu nổi khi cuộn trang (để tránh menu trôi lơ lửng)
+        window.addEventListener('scroll', closeFloatingMenus, true);
+        // Đóng menu nổi khi resize cửa sổ
+        window.addEventListener('resize', closeFloatingMenus);
 
         function sendReaction(message, emoji) {
             if (stompClient) {
@@ -1542,8 +1586,7 @@
         // Đóng dropdown tin nhắn khi click ra ngoài
         window.addEventListener('click', function(e) {
             if (!e.target.closest('.msg-options-btn') && !e.target.closest('.reaction-btn')) {
-                document.querySelectorAll('.msg-dropdown').forEach(d => d.classList.remove('show'));
-                document.querySelectorAll('.reaction-bar').forEach(b => b.classList.remove('show'));
+                closeFloatingMenus();
             }
         });
 
