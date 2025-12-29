@@ -828,3 +828,110 @@ body {
 .remove-option-btn:hover { background: #f5f5f5; }
 .remove-option-btn.danger { color: #d32f2f; border-color: #ffcdd2; }
 .remove-option-btn.danger:hover { background: #ffebee; }
+
+/* Highlight từ khóa tìm kiếm */
+.highlight {
+    background-color: #ffeb3b;
+    color: #050505;
+    border-radius: 2px;
+    font-weight: bold;
+}
+
+/* --- GIAO DIỆN TÌM KIẾM NÂNG CAO (FULL SCREEN) --- */
+.search-interface-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #fff; z-index: 4000;
+    display: flex; flex-direction: column;
+}
+
+.search-interface-header {
+    height: 60px; border-bottom: 1px solid #ddd;
+    display: flex; align-items: center; padding: 0 20px;
+    font-size: 20px; font-weight: bold; color: #1c1e21;
+    justify-content: space-between;
+    background: #fff;
+}
+
+.search-interface-body {
+    flex-grow: 1; display: flex; overflow: hidden;
+}
+
+/* Cột trái: Danh sách người dùng */
+.search-col-left {
+    width: 360px; border-right: 1px solid #ddd;
+    overflow-y: auto; background: #fff;
+    display: flex; flex-direction: column;
+}
+
+/* Khu vực chính (Bao gồm cột giữa và phải) */
+.search-main-area {
+    flex-grow: 1; display: flex; position: relative;
+    background-color: #f0f2f5;
+}
+
+/* Trạng thái chưa chọn chat */
+.search-empty-state {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #65676b; font-weight: 500;
+    flex-direction: column;
+}
+
+/* Container khi đã chọn chat (Chia 2 ngăn) */
+.search-content-container {
+    display: flex; width: 100%; height: 100%;
+}
+
+/* Cột giữa: Nội dung chat */
+.search-col-middle {
+    flex-grow: 1; display: flex; flex-direction: column;
+    border-right: 1px solid #ddd;
+    background: #fff;
+}
+.search-chat-header {
+    padding: 15px; border-bottom: 1px solid #eee; font-weight: bold; font-size: 16px;
+    display: flex; align-items: center; gap: 10px;
+}
+.search-chat-body {
+    flex-grow: 1; overflow-y: auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Cột phải: Danh sách snippet kết quả */
+.search-col-right {
+    width: 300px; background: #fff;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+}
+.search-snippets-header {
+    padding: 15px; font-weight: 600; color: #65676b; font-size: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.snippet-item {
+    padding: 12px 15px; cursor: pointer;
+    border-bottom: 1px solid #f0f2f5;
+    transition: background 0.2s;
+}
+.snippet-item:hover { background-color: #f0f2f5; }
+
+.snippet-sender { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #050505; }
+.snippet-content { font-size: 13px; color: #65676b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.snippet-time { font-size: 11px; color: #8a8d91; margin-top: 4px; }
+
+/* Nút đóng giao diện tìm kiếm */
+.btn-close-search {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #e4e6eb; border: none; cursor: pointer;
+    font-size: 20px; display: flex; align-items: center; justify-content: center;
+}
+.btn-close-search:hover { background: #d8dadf; }
+
+/* Tái sử dụng style bong bóng chat cho giao diện tìm kiếm */
+.search-chat-body li { display: flex; width: 100%; margin-bottom: 8px; }
+.search-chat-body .my-message-container { flex-direction: column; align-items: flex-end; }
+.search-chat-body .other-message-container { justify-content: flex-start; align-items: flex-end; }
+.search-chat-body .bubble { max-width: 70%; }
+
+/* Highlight trong snippet */
+.snippet-highlight { background-color: #fff9c4; color: #050505; font-weight: bold; }

@@ -148,6 +148,33 @@
         </div>
     </div>
 
+    <!-- Giao diện Tìm kiếm Tin nhắn (Full Screen) -->
+    <div id="search-interface" class="search-interface-overlay hidden">
+        <div class="search-interface-header">
+            <span id="search-interface-title">Tìm kiếm tin nhắn</span>
+            <button class="btn-close-search" onclick="closeSearchInterface()">&times;</button>
+        </div>
+        <div class="search-interface-body">
+            <!-- Cột trái: Danh sách đoạn chat khớp -->
+            <div id="search-results-list" class="search-col-left"></div>
+
+            <!-- Khu vực chính -->
+            <div class="search-main-area">
+                <!-- Trạng thái chưa chọn -->
+                <div id="search-empty-state" class="search-empty-state">
+                    <div style="margin-bottom: 10px; font-size: 40px; color: #ddd;">💬</div>
+                    Chưa chọn đoạn chat nào
+                </div>
+
+                <!-- Nội dung khi đã chọn (Chia 2 ngăn) -->
+                <div id="search-content-container" class="search-content-container hidden">
+                    <div class="search-col-middle" id="search-chat-view"></div>
+                    <div class="search-col-right" id="search-snippets-view"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         var stompClient = null;
         var username = null; 
@@ -157,6 +184,7 @@
         var allUsers = []; // Danh sách user
         var pendingRawAvatar = null; // Lưu ảnh gốc khi đang chỉnh sửa
         var selectedMessageId = null; // ID tin nhắn đang chọn để xóa
+        var currentSearchKeyword = ""; // Lưu từ khóa tìm kiếm hiện tại
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -271,14 +299,20 @@
         }
 
         // Hàm tạo phần tử hiển thị user (để tái sử dụng)
-        function createChatUserItem(user) {
+        function createChatUserItem(user, matchCount, searchKeyword, isForFullSearch = false) {
             const name = user.displayName || user.username;
             
             const item = document.createElement('div');
             item.className = 'chat-item';
             item.onclick = () => {
-                startChat(user);
-                toggleChatList();
+                if (isForFullSearch) {
+                    // Nếu đang ở giao diện tìm kiếm lớn -> Chọn đoạn chat để xem chi tiết
+                    selectSearchConversation(user, searchKeyword);
+                } else {
+                    // Nếu ở dropdown menu -> Mở chat head
+                    startChat(user, searchKeyword);
+                    toggleChatList();
+                }
             };
 
             const avatarContainer = document.createElement('div');
@@ -288,12 +322,16 @@
             avatar.className = 'chat-item-avatar';
             setElementAvatar(avatar, name, user.avatar);
 
-            const statusBadge = document.createElement('div');
-            statusBadge.className = 'status-badge';
-            if (user.status === 'ONLINE') statusBadge.classList.add('status-online');
-            else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
-
-            avatarContainer.append(avatar, statusBadge);
+            // Nếu là kết quả tìm kiếm tin nhắn (có matchCount) thì không hiện badge online
+            if (matchCount === undefined) {
+                const statusBadge = document.createElement('div');
+                statusBadge.className = 'status-badge';
+                if (user.status === 'ONLINE') statusBadge.classList.add('status-online');
+                else { statusBadge.classList.add('status-offline'); statusBadge.textContent = getShortTime(user.lastActive); }
+                avatarContainer.append(avatar, statusBadge);
+            } else {
+                avatarContainer.append(avatar);
+            }
             
             const info = document.createElement('div');
             info.className = 'chat-item-info';
@@ -304,38 +342,53 @@
             
             const statusEl = document.createElement('div');
             statusEl.className = 'chat-item-status';
-            statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
+            
+            if (matchCount !== undefined) {
+                statusEl.textContent = `${matchCount} tin nhắn trùng khớp`;
+            } else {
+                statusEl.textContent = user.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(user.lastActive);
+            }
 
             info.append(nameEl, statusEl);
             item.append(avatarContainer, info);
             return item;
         }
 
-        function startChat(partnerUser) {
+        function startChat(partnerUser, searchKeyword = null) {
             const partnerUsername = partnerUser.username;
             const partnerName = partnerUser.displayName || partnerUser.username;
             
-            // Nếu đã mở rồi thì không làm gì (hoặc có thể focus vào nó)
-            if (activeChats[partnerUsername]) return;
+            // Nếu đã mở rồi
+            if (activeChats[partnerUsername]) {
+                // Nếu có từ khóa tìm kiếm, cập nhật và tải lại để highlight/scroll
+                if (searchKeyword) {
+                    activeChats[partnerUsername].searchKeyword = searchKeyword;
+                    const msgArea = document.querySelector(`#msg-area-${partnerUsername}`);
+                    if (msgArea) msgArea.innerHTML = ''; // Xóa cũ để vẽ lại
+                    loadChatHistory(activeChats[partnerUsername].roomId, partnerUsername, partnerName);
+                }
+                return;
+            }
 
             // Tính toán Room ID
             const myName = document.querySelector('#login-username').value.trim();
             const roomId = [myName, partnerUsername].sort().join('_');
 
-            createChatWindowUI(partnerUser, roomId);
+            createChatWindowUI(partnerUser, roomId, searchKeyword);
             subscribeToRoom(partnerUsername, roomId);
             loadChatHistory(roomId, partnerUsername, partnerName);
             sendReadReceipt(partnerUsername, roomId); // Báo đã xem ngay khi mở chat
             updateStatusUI(partnerUsername, partnerUser.status, partnerUser.lastActive); // Hiển thị trạng thái ban đầu
         }
 
-        function createChatWindowUI(partnerUser, roomId) {
+
+        function createChatWindowUI(partnerUser, roomId, searchKeyword) {
             const partnerUsername = partnerUser.username;
             const partnerName = partnerUser.displayName || partnerUser.username;
 
-            // Chuẩn bị trạng thái ban đầu cho badge trên header
-            let badgeClass = 'status-badge header-status-badge';
-            let badgeContent = '';
+                     let badgeClass = 'status-badge header-status-badge';
+                     let badgeContent = '';
+
             if (partnerUser.status === 'ONLINE') {
                 badgeClass += ' status-online';
             } else {
@@ -414,13 +467,13 @@
                 typingTimeout: null, // Để quản lý thời gian ẩn thông báo
                 status: partnerUser.status,
                 lastActive: partnerUser.lastActive,
-                pendingImage: null // Lưu trữ ảnh đang chờ gửi
+                pendingImage: null, // Lưu trữ ảnh đang chờ gửi
+                searchKeyword: searchKeyword // Lưu từ khóa tìm kiếm
             };
         }
 
         function closeChatWindow(partnerUsername) {
             if (activeChats[partnerUsername]) {
-                // Hủy đăng ký socket
                 if (activeChats[partnerUsername].subscription) {
                     activeChats[partnerUsername].subscription.unsubscribe();
                 }
@@ -485,14 +538,178 @@
 
         function performMessageSearch(keyword) {
             if (!keyword.trim()) return;
+            currentSearchKeyword = keyword.trim();
             
             fetch(`/api/messages/search?username=${username}&keyword=${encodeURIComponent(keyword.trim())}`)
                 .then(res => res.json())
-                .then(partnerUsernames => {
-                    // Lấy object user từ danh sách username trả về
-                    const msgMatches = allUsers.filter(u => partnerUsernames.includes(u.username));
-                    renderUserList(msgMatches); // Render kết quả tìm kiếm tin nhắn
+                .then(results => {
+                    // results là mảng [{username: '...', count: 5}, ...]
+                    const list = document.querySelector('#chat-list-items');
+                    list.innerHTML = '';
+
+                    if (results.length === 0) {
+                        list.innerHTML = '<div style="padding:20px; text-align:center; color:#65676b; font-size:14px;">Không tìm thấy kết quả</div>';
+                        return;
+                    }
+
+                    // --- MỞ GIAO DIỆN TÌM KIẾM LỚN ---
+                    openSearchInterface(results, keyword.trim());
+                    
+                    // Đóng dropdown nhỏ
+                    document.getElementById("chat-list-dropdown").classList.remove("show");
                 });
+        }
+
+        // --- LOGIC GIAO DIỆN TÌM KIẾM FULL SCREEN ---
+        function openSearchInterface(results, keyword) {
+            const overlay = document.getElementById('search-interface');
+            const list = document.getElementById('search-results-list');
+            const title = document.getElementById('search-interface-title');
+            
+            title.textContent = `Tìm kiếm tin nhắn cho "${keyword}"`;
+            list.innerHTML = '';
+            
+            // Reset trạng thái bên phải
+            document.getElementById('search-empty-state').classList.remove('hidden');
+            document.getElementById('search-content-container').classList.add('hidden');
+
+            // Render danh sách kết quả bên trái
+            results.forEach(item => {
+                const user = allUsers.find(u => u.username === item.username);
+                if (user) {
+                    // Tham số cuối true để biết là đang render cho giao diện lớn
+                    const userItem = createChatUserItem(user, item.count, keyword, true);
+                    list.appendChild(userItem);
+                }
+            });
+
+            overlay.classList.remove('hidden');
+        }
+
+        function closeSearchInterface() {
+            document.getElementById('search-interface').classList.add('hidden');
+        }
+
+        function selectSearchConversation(partnerUser, keyword) {
+            // 1. Ẩn Empty State, Hiện Content
+            document.getElementById('search-empty-state').classList.add('hidden');
+            document.getElementById('search-content-container').classList.remove('hidden');
+
+            const chatView = document.getElementById('search-chat-view');
+            const snippetsView = document.getElementById('search-snippets-view');
+            
+            chatView.innerHTML = `<div class="search-chat-header">Đoạn chat với ${partnerUser.displayName || partnerUser.username}</div><ul class="search-chat-body" id="search-chat-body-ul">Đang tải...</ul>`;
+            snippetsView.innerHTML = `<div class="search-snippets-header">Kết quả khớp</div>`;
+
+            // 2. Tải lịch sử chat
+            const myName = document.querySelector('#login-username').value.trim();
+            const roomId = [myName, partnerUser.username].sort().join('_');
+
+            fetch('/api/messages/' + roomId + '?username=' + username)
+                .then(res => res.json())
+                .then(messages => {
+                    const ul = document.getElementById('search-chat-body-ul');
+                    ul.innerHTML = '';
+                    
+                    // Render tin nhắn vào cột giữa (sử dụng hàm drawMessage nhưng target vào ul mới)
+                    // Chúng ta cần sửa drawMessage hoặc viết hàm render riêng. Để an toàn, viết hàm render riêng cho search view.
+                    messages.forEach(msg => renderSearchChatMessage(ul, msg, partnerUser.username, keyword));
+
+                    // 3. Lọc và Render Snippets vào cột phải
+                    // Sử dụng hàm chuẩn hóa để tìm kiếm không phân biệt dấu (đồng bộ với Database)
+                    const keywordNorm = normalizeString(keyword);
+                    const matches = messages.filter(m => {
+                        return m.type === 'CHAT' && // Chỉ lấy tin nhắn văn bản (khớp với Backend)
+                               m.content && 
+                               normalizeString(m.content).includes(keywordNorm);
+                    });
+                    
+                    matches.forEach(msg => {
+                        const snippet = document.createElement('div');
+                        snippet.className = 'snippet-item';
+                        
+                        const senderName = msg.sender === username ? 'Bạn' : (partnerUser.displayName || partnerUser.username);
+                        
+                        // Highlight từ khóa trong snippet
+                        let contentHtml = escapeHtml(msg.content);
+                        const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                        contentHtml = contentHtml.replace(regex, '<span class="snippet-highlight">$1</span>');
+
+                        snippet.innerHTML = `
+                            <div class="snippet-sender">${senderName}</div>
+                            <div class="snippet-content">${contentHtml}</div>
+                            <div class="snippet-time">${formatFullDate(msg.timestamp)}</div>
+                        `;
+                        
+                        snippet.onclick = () => {
+                            // Scroll cột giữa đến tin nhắn này
+                            const targetMsg = document.getElementById(`search-msg-${msg.id}`);
+                            if (targetMsg) {
+                                targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                targetMsg.querySelector('.bubble').style.backgroundColor = '#fff9c4';
+                                setTimeout(() => { 
+                                    targetMsg.querySelector('.bubble').style.backgroundColor = (msg.sender === username ? '#45bd62' : '#ffffff'); 
+                                }, 1500);
+                            }
+                        };
+                        snippetsView.appendChild(snippet);
+                    });
+                    
+                    // Cuộn xuống cuối cột giữa mặc định
+                    ul.scrollTop = ul.scrollHeight;
+                });
+        }
+
+        // Hàm render tin nhắn riêng cho giao diện tìm kiếm (đơn giản hóa từ drawMessage)
+        function renderSearchChatMessage(container, message, partnerUsername, keyword) {
+            if (message.type === 'TYPING' || message.type === 'READ' || message.type === 'REACT') return;
+
+            const li = document.createElement('li');
+            li.id = `search-msg-${message.id}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            if (message.sender === username) {
+                li.className = 'my-message-container';
+                bubble.classList.add('my-bubble');
+            } else {
+                li.className = 'other-message-container';
+                bubble.classList.add('other-bubble');
+                
+                // Avatar cho tin nhắn người khác
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                const senderUser = allUsers.find(u => u.username === message.sender);
+                setElementAvatar(avatar, getDisplayName(message.sender), senderUser ? senderUser.avatar : null);
+                li.appendChild(avatar);
+            }
+
+            if (message.type === 'IMAGE') {
+                bubble.classList.add('image-bubble');
+                bubble.innerHTML = `<img src="${message.content}" class="chat-image">`;
+            } else if (message.type === 'REVOKED') {
+                bubble.classList.add('revoked-bubble');
+                bubble.textContent = message.content;
+            } else {
+                // Highlight
+                let contentHtml = escapeHtml(message.content);
+                if (keyword) {
+                    const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                    contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
+                }
+                bubble.innerHTML = contentHtml;
+            }
+            
+            // Time tooltip
+            bubble.innerHTML += `<span class="message-time">${formatFullDate(message.timestamp)}</span>`;
+
+            contentDiv.appendChild(bubble);
+            li.appendChild(contentDiv);
+            container.appendChild(li);
         }
 
         // --- DROPDOWN & DELETE CHAT ---
@@ -715,6 +932,33 @@
                             drawMessage({ type: 'READ', sender: partnerUsername }, partnerUsername);
                         }
                     }
+
+                    // --- LOGIC SCROLL ĐẾN TIN NHẮN TÌM KIẾM ---
+                    if (activeChats[partnerUsername] && activeChats[partnerUsername].searchKeyword) {
+                        const msgArea = document.querySelector(`#msg-area-${partnerUsername}`);
+                        // Tìm tất cả các thẻ highlight
+                        const highlights = msgArea.querySelectorAll('.highlight');
+                        if (highlights.length > 0) {
+                            // Cuộn đến kết quả cuối cùng (gần nhất)
+                            const lastHighlight = highlights[highlights.length - 1];
+                            // Dùng setTimeout để đảm bảo DOM đã render xong hoàn toàn
+                            setTimeout(() => {
+                                lastHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                // Hiệu ứng nhấp nháy cho bong bóng chứa highlight (tùy chọn)
+                                const bubble = lastHighlight.closest('.bubble');
+                                if (bubble) {
+                                    bubble.style.transition = 'background-color 0.5s';
+                                    const originalBg = bubble.style.backgroundColor;
+                                    bubble.style.backgroundColor = '#fff9c4'; // Màu vàng nhạt
+                                    setTimeout(() => { bubble.style.backgroundColor = originalBg; }, 1000);
+                                }
+                            }, 100);
+                        }
+                    } else {
+                        // Nếu không tìm kiếm, cuộn xuống cuối như bình thường
+                        const msgArea = document.querySelector(`#msg-area-${partnerUsername}`);
+                        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+                    }
                 });
         }
 
@@ -836,6 +1080,27 @@
             return u ? (u.displayName || u.username) : userId;
         }
 
+        // Hàm escape HTML để chống XSS khi dùng innerHTML
+        function escapeHtml(text) {
+            if (!text) return text;
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Hàm escape ký tự đặc biệt trong Regex
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // Hàm chuẩn hóa chuỗi (bỏ dấu) để tìm kiếm chính xác hơn
+        function normalizeString(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d");
+        }
+
         function drawMessage(message, partnerUsername) {
             // Tìm đúng khung chat để vẽ tin nhắn
             var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
@@ -921,7 +1186,17 @@
                         bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
-                        bubble.textContent = message.content;
+                        // Xử lý Highlight từ khóa
+                        let contentHtml = escapeHtml(message.content);
+                        const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
+                        
+                        if (keyword) {
+                            // Tạo Regex tìm kiếm không phân biệt hoa thường (gi)
+                            const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                            contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
+                        }
+                        
+                        bubble.innerHTML = contentHtml;
                     }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     
@@ -945,7 +1220,15 @@
                         bubble.classList.add('image-bubble');
                         bubble.innerHTML = `<img src="${message.content}" class="chat-image" onclick="openImageViewer(this)">`;
                     } else {
-                        bubble.textContent = message.content;
+                        // Xử lý Highlight từ khóa
+                        let contentHtml = escapeHtml(message.content);
+                        const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
+                        
+                        if (keyword) {
+                            const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                            contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
+                        }
+                        bubble.innerHTML = contentHtml;
                     }
                     if (timeString) bubble.innerHTML += `<span class="message-time">${timeString}</span>`;
                     
@@ -960,7 +1243,12 @@
                 messageLi.appendChild(contentContainer);
             }
             messageArea.appendChild(messageLi);
-            messageArea.scrollTop = messageArea.scrollHeight;
+            
+            // Chỉ tự động cuộn xuống cuối nếu KHÔNG phải đang tìm kiếm
+            // (Logic cuộn khi tìm kiếm được xử lý trong loadChatHistory)
+            if (!activeChats[partnerUsername] || !activeChats[partnerUsername].searchKeyword) {
+                messageArea.scrollTop = messageArea.scrollHeight;
+            }
         }
 
         // --- XỬ LÝ MESSAGE ACTIONS (3 CHẤM + REACTION) ---

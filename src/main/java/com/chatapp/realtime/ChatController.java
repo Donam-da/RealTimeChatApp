@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.HashSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.text.Normalizer;
+import java.util.regex.Pattern;
 
 @RestController
 @RequiredArgsConstructor
@@ -160,25 +162,76 @@ public class ChatController {
         return ResponseEntity.ok("Đã xóa đoạn chat (phía bạn)");
     }
 
-    // API Tìm kiếm tin nhắn (Trả về danh sách username của đối phương có tin nhắn khớp)
+    // API Tìm kiếm tin nhắn (Trả về danh sách username và số lượng tin nhắn khớp)
     @GetMapping("/api/messages/search")
-    public ResponseEntity<List<String>> searchMessages(@RequestParam String username, @RequestParam String keyword) {
-        // 1. Tìm tất cả tin nhắn chứa từ khóa
-        List<ChatMessage> msgs = messageRepository.findByContentContainingIgnoreCase(keyword);
+    public ResponseEntity<List<Map<String, Object>>> searchMessages(@RequestParam String username, @RequestParam String keyword) {
+        // 1. Lấy tất cả tin nhắn liên quan đến user này (thay vì tìm bằng DB để xử lý tiếng Việt chính xác hơn)
+        List<ChatMessage> msgs = messageRepository.findByRoomIdContaining(username);
         
-        // 2. Lọc ra các username đối phương trong các cuộc trò chuyện đó
-        Set<String> partners = new HashSet<>();
+        // Lấy danh sách mốc thời gian xóa chat của user để lọc tin nhắn cũ
+        List<ChatClearRecord> clearRecords = chatClearRecordRepository.findByUsername(username);
+        Map<String, LocalDateTime> clearMap = clearRecords.stream().collect(Collectors.toMap(ChatClearRecord::getRoomId, ChatClearRecord::getClearedAt));
+
+        String normalizedKeyword = normalizeString(keyword);
+
+        // 2. Lọc và đếm số lượng tin nhắn khớp theo từng đối tác
+        Map<String, Integer> partnerMatchCounts = new HashMap<>();
+        
         for (ChatMessage msg : msgs) {
+            // Chỉ tìm trong tin nhắn văn bản (CHAT), bỏ qua IMAGE (base64), TYPING, READ...
+            if (!"CHAT".equals(msg.getType())) {
+                continue;
+            }
+
+            // Bỏ qua tin nhắn đã xóa phía người dùng (Remove for you)
+            if (msg.getDeletedBy() != null && msg.getDeletedBy().contains(username + ",")) {
+                continue;
+            }
+
+            // Kiểm tra nội dung có khớp từ khóa không (Bỏ dấu tiếng Việt)
+            String content = msg.getContent();
+            if (content == null || !normalizeString(content).contains(normalizedKeyword)) {
+                continue;
+            }
+
             String roomId = msg.getRoomId();
             // Kiểm tra xem user hiện tại có trong phòng chat này không (roomId dạng user1_user2)
             if (roomId != null && roomId.contains(username)) {
                 String[] parts = roomId.split("_");
                 if (parts.length == 2) {
-                    if (parts[0].equals(username)) partners.add(parts[1]);
-                    else if (parts[1].equals(username)) partners.add(parts[0]);
+                    String partner = null;
+                    if (parts[0].equals(username)) partner = parts[1];
+                    else if (parts[1].equals(username)) partner = parts[0];
+                    
+                    if (partner != null) {
+                        // Kiểm tra nếu tin nhắn nằm trước mốc thời gian xóa lịch sử
+                        if (clearMap.containsKey(roomId) && msg.getTimestamp().isBefore(clearMap.get(roomId))) {
+                            continue;
+                        }
+
+                        partnerMatchCounts.put(partner, partnerMatchCounts.getOrDefault(partner, 0) + 1);
+                    }
                 }
             }
         }
-        return ResponseEntity.ok(new ArrayList<>(partners));
+        
+        // Chuyển đổi sang List Map để trả về JSON
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : partnerMatchCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("username", entry.getKey());
+            item.put("count", entry.getValue());
+            results.add(item);
+        }
+        
+        return ResponseEntity.ok(results);
+    }
+
+    // Helper: Chuẩn hóa chuỗi (Bỏ dấu tiếng Việt, về chữ thường)
+    private String normalizeString(String input) {
+        if (input == null) return "";
+        String nfdNormalizedString = Normalizer.normalize(input, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfdNormalizedString).replaceAll("").toLowerCase().replace("đ", "d");
     }
 }

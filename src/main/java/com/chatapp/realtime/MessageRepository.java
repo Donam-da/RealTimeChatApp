@@ -16,4 +16,7 @@ public interface MessageRepository extends JpaRepository<ChatMessage, Long> {
 
     // Tìm kiếm tin nhắn chứa nội dung (không phân biệt hoa thường)
     List<ChatMessage> findByContentContainingIgnoreCase(String content);
+
+    // Tìm tin nhắn theo RoomId chứa chuỗi (để lấy tất cả tin nhắn của user)
+    List<ChatMessage> findByRoomIdContaining(String partialRoomId);
 }
