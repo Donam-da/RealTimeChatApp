@@ -94,13 +94,8 @@ public class ChatController {
                 }
                 
                 // chatMessage.getContent() chứa emoji (ví dụ: "👍")
-                // Nếu user đã thả icon này rồi thì gỡ bỏ (toggle), nếu chưa thì cập nhật
-                String currentReaction = reactions.get(chatMessage.getSender());
-                if (chatMessage.getContent().equals(currentReaction)) {
-                    reactions.remove(chatMessage.getSender());
-                } else {
-                    reactions.put(chatMessage.getSender(), chatMessage.getContent());
-                }
+                // Cập nhật cảm xúc (ghi đè nếu đã có, không xóa khi chọn trùng)
+                reactions.put(chatMessage.getSender(), chatMessage.getContent());
                 
                 msg.setReactions(mapper.writeValueAsString(reactions));
                 messageRepository.save(msg);
