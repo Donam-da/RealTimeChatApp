@@ -346,7 +346,8 @@ body {
     top: 50%; transform: translateY(-50%);
     z-index: 20;
 }
-.message-content:hover .msg-actions-container { display: flex; }
+.my-message-container:hover .msg-actions-container,
+.other-message-container:hover .msg-actions-container { display: flex; }
 
 .msg-options-btn {
     align-items: center; justify-content: center;
