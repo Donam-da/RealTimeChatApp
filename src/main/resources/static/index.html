@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=7.3">
+    <link rel="stylesheet" href="style.css?v=7.4">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -632,7 +632,7 @@
                         
                         // Highlight từ khóa trong snippet
                         let contentHtml = escapeHtml(msg.content);
-                        const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                        const regex = getVietnameseRegex(keyword);
                         contentHtml = contentHtml.replace(regex, '<span class="snippet-highlight">$1</span>');
 
                         snippet.innerHTML = `
@@ -698,7 +698,7 @@
                 // Highlight
                 let contentHtml = escapeHtml(message.content);
                 if (keyword) {
-                    const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                    const regex = getVietnameseRegex(keyword);
                     contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
                 }
                 bubble.innerHTML = contentHtml;
@@ -1101,6 +1101,26 @@
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d");
         }
 
+        // Hàm tạo Regex tìm kiếm tiếng Việt không dấu
+        function getVietnameseRegex(keyword) {
+            const str = normalizeString(keyword);
+            let regexStr = "";
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                switch (char) {
+                    case 'a': regexStr += "[aáàảãạăắằẳẵặâấầẩẫậ]"; break;
+                    case 'd': regexStr += "[dđ]"; break;
+                    case 'e': regexStr += "[eéèẻẽẹêếềểễệ]"; break;
+                    case 'i': regexStr += "[iíìỉĩị]"; break;
+                    case 'o': regexStr += "[oóòỏõọôốồổỗộơớờởỡợ]"; break;
+                    case 'u': regexStr += "[uúùủũụưứừửữự]"; break;
+                    case 'y': regexStr += "[yýỳỷỹỵ]"; break;
+                    default: regexStr += char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                }
+            }
+            return new RegExp(`(${regexStr})`, 'gi');
+        }
+
         function drawMessage(message, partnerUsername) {
             // Tìm đúng khung chat để vẽ tin nhắn
             var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
@@ -1191,8 +1211,8 @@
                         const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
                         
                         if (keyword) {
-                            // Tạo Regex tìm kiếm không phân biệt hoa thường (gi)
-                            const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                            // Tạo Regex tìm kiếm không phân biệt hoa thường và dấu
+                            const regex = getVietnameseRegex(keyword);
                             contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
                         }
                         
@@ -1225,7 +1245,7 @@
                         const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
                         
                         if (keyword) {
-                            const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+                            const regex = getVietnameseRegex(keyword);
                             contentHtml = contentHtml.replace(regex, '<span class="highlight">$1</span>');
                         }
                         bubble.innerHTML = contentHtml;

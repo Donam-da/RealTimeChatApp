@@ -931,7 +931,7 @@ body {
 .search-chat-body li { display: flex; width: 100%; margin-bottom: 8px; }
 .search-chat-body .my-message-container { flex-direction: column; align-items: flex-end; }
 .search-chat-body .other-message-container { justify-content: flex-start; align-items: flex-end; }
-.search-chat-body .bubble { max-width: 70%; }
+.search-chat-body .bubble { max-width: 100%; }
 
 /* Highlight trong snippet */
 .snippet-highlight { background-color: #fff9c4; color: #050505; font-weight: bold; }
