@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Chat App - Pro</title>
-    <link rel="stylesheet" href="style.css?v=8.1">
+    <link rel="stylesheet" href="style.css?v=8.3">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -476,6 +476,7 @@
                                     </svg>
                                 </button>
                                 <div id="dropdown-${partnerUsername}" class="dropdown-content">
+                                    <a href="#" onclick="openMessengerForUser('${partnerUsername}')">Mở trong Messenger</a>
                                     <a href="#" onclick="deleteChat('${partnerUsername}')">Xóa đoạn chat</a>
                                 </div>
                             </div>
@@ -646,6 +647,28 @@
             });
 
             overlay.classList.remove('hidden');
+        }
+
+        function openMessengerForUser(partnerUsername) {
+            const user = allUsers.find(u => u.username === partnerUsername);
+            if (!user) return;
+
+            const overlay = document.getElementById('search-interface');
+            const list = document.getElementById('search-results-list');
+            const title = document.getElementById('search-interface-title');
+            
+            title.textContent = "Messenger";
+            list.innerHTML = '';
+            
+            // Render toàn bộ danh sách user vào cột trái
+            allUsers.forEach(u => {
+                // isForFullSearch = true để khi click vào sẽ gọi selectSearchConversation
+                const item = createChatUserItem(u, undefined, '', true);
+                list.appendChild(item);
+            });
+
+            overlay.classList.remove('hidden');
+            selectSearchConversation(user, '');
         }
 
         function handleSearchBack() {
