@@ -1640,11 +1640,15 @@
             // Ưu tiên định vị theo bong bóng chat (bubble) để hiển thị reaction bar ngay trên đầu tin nhắn
             const contentEl = targetBtn.closest('.message-content');
             const bubbleEl = contentEl ? contentEl.querySelector('.bubble') : null;
-            const rect = bubbleEl ? bubbleEl.getBoundingClientRect() : targetBtn.getBoundingClientRect();
+            
+            // Nếu là ảnh, dùng vị trí của icon mặt cười để thanh reaction gần chỗ bấm hơn
+            // Nếu là text, dùng vị trí bong bóng chat
+            let rect = (bubbleEl && message.type !== 'IMAGE') ? bubbleEl.getBoundingClientRect() : targetBtn.getBoundingClientRect();
+            
             const barRect = bar.getBoundingClientRect();
             
-            let top = rect.top - barRect.height - 8; // Mặc định hiển thị bên trên bong bóng
-            let left = rect.left + (rect.width / 2) - (barRect.width / 2); // Căn giữa theo bong bóng
+            let top = rect.top - barRect.height - 8; // Mặc định hiển thị bên trên
+            let left = rect.left + (rect.width / 2) - (barRect.width / 2); // Căn giữa
             
             // Nếu sát mép trên quá -> Hiển thị bên dưới bong bóng
             if (top < 10) top = rect.bottom + 8;
