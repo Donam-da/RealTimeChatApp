@@ -664,11 +664,97 @@
             allUsers.forEach(u => {
                 // isForFullSearch = true để khi click vào sẽ gọi selectSearchConversation
                 const item = createChatUserItem(u, undefined, '', true);
+                
+                // Override onclick để mở giao diện Messenger (3 khung) thay vì Search
+                item.onclick = () => {
+                    // Highlight item được chọn
+                    document.querySelectorAll('#search-results-list .chat-item').forEach(el => el.style.backgroundColor = '');
+                    item.style.backgroundColor = '#e4e6eb';
+                    selectMessengerConversation(u);
+                };
+                
                 list.appendChild(item);
             });
 
             overlay.classList.remove('hidden');
-            selectSearchConversation(user, '');
+            
+            // Highlight user đầu tiên (người được chọn)
+            const activeItem = Array.from(list.children).find((child, index) => allUsers[index].username === partnerUsername);
+            if (activeItem) activeItem.style.backgroundColor = '#e4e6eb';
+
+            selectMessengerConversation(user);
+        }
+
+        function selectMessengerConversation(partnerUser) {
+            // 1. Ẩn Empty State, Hiện Content
+            document.getElementById('search-empty-state').classList.add('hidden');
+            document.getElementById('search-content-container').classList.remove('hidden');
+
+            const chatView = document.getElementById('search-chat-view');
+            const rightView = document.getElementById('search-snippets-view');
+            
+            // --- CỘT GIỮA: CHAT ---
+            chatView.innerHTML = `
+                <div class="search-chat-header" style="justify-content: space-between; height: 60px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="chat-header-avatar" style="width: 40px; height: 40px; background-image: url('${partnerUser.avatar || ''}'); background-color: ${!partnerUser.avatar ? getAvatarColor(partnerUser.displayName||partnerUser.username) : 'transparent'}; background-size: cover; background-position: center; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${!partnerUser.avatar ? (partnerUser.displayName||partnerUser.username).charAt(0) : ''}</div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: bold; font-size: 16px;">${partnerUser.displayName || partnerUser.username}</span>
+                            <span style="font-size: 12px; color: #65676b;">${partnerUser.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(partnerUser.lastActive)}</span>
+                        </div>
+                    </div>
+                    <div style="cursor: pointer;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="#0084ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </div>
+                </div>
+                <ul class="search-chat-body" id="messenger-chat-body-ul" style="padding: 10px; flex-grow: 1;">Đang tải...</ul>
+                <div class="chat-window-footer" style="border-top: 1px solid #ddd; padding: 10px;">
+                    <form onsubmit="event.preventDefault(); alert('Tính năng này đang phát triển');" style="display: flex; align-items: center;">
+                        <label class="attach-btn" title="Gửi ảnh" style="margin-right: 10px;">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                        </label>
+                        <textarea placeholder="Nhập tin nhắn..." rows="1" style="flex-grow: 1; border-radius: 20px; padding: 8px 12px; border: none; background: #f0f2f5; resize: none;"></textarea>
+                        <button type="submit" style="margin-left: 10px; background: none; border: none; color: #0084ff; cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                        </button>
+                    </form>
+                </div>`;
+
+            // --- CỘT PHẢI: THÔNG TIN ---
+            rightView.innerHTML = `
+                <div style="padding: 20px; display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #eee;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background-color: #ddd; margin-bottom: 10px; background-image: url('${partnerUser.avatar || ''}'); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 30px; color: white; font-weight: bold; background-color: ${!partnerUser.avatar ? getAvatarColor(partnerUser.displayName||partnerUser.username) : 'transparent'}">${!partnerUser.avatar ? (partnerUser.displayName||partnerUser.username).charAt(0) : ''}</div>
+                    <div style="font-weight: bold; font-size: 20px; margin-bottom: 5px;">${partnerUser.displayName || partnerUser.username}</div>
+                    <div style="font-size: 14px; color: #65676b;">${partnerUser.status === 'ONLINE' ? 'Đang hoạt động' : 'Hoạt động ' + timeSince(partnerUser.lastActive)}</div>
+                </div>
+                <div style="flex-grow: 1; overflow-y: auto;">
+                    <div style="padding: 15px; font-weight: 600; color: #050505; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f2f5;">
+                        Tùy chỉnh đoạn chat
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="#65676b"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                    </div>
+                    <div style="padding: 15px; font-weight: 600; color: #050505; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f2f5;">
+                        File phương tiện & file
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="#65676b"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                    </div>
+                    <div style="padding: 15px; font-weight: 600; color: #050505; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f2f5;">
+                        Quyền riêng tư & hỗ trợ
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="#65676b"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                    </div>
+                </div>
+            `;
+
+            // Tải lịch sử chat
+            const myName = document.querySelector('#login-username').value.trim();
+            const roomId = [myName, partnerUser.username].sort().join('_');
+
+            fetch('/api/messages/' + roomId + '?username=' + username)
+                .then(res => res.json())
+                .then(messages => {
+                    const ul = document.getElementById('messenger-chat-body-ul');
+                    ul.innerHTML = '';
+                    messages.forEach(msg => renderSearchChatMessage(ul, msg, partnerUser.username, ''));
+                    ul.scrollTop = ul.scrollHeight;
+                });
         }
 
         function handleSearchBack() {
