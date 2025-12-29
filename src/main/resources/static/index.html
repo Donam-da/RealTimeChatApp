@@ -184,6 +184,9 @@
         var myAvatarData = null; // Biến lưu avatar của mình
         var activeChats = {}; // Lưu trữ các cửa sổ chat đang mở: { 'username': { element, subscription, roomId } }
         var allUsers = []; // Danh sách user
+        var currentMessengerPartnerUsername = null; // Người đang chat trong giao diện Messenger (Full screen)
+        var currentMessengerSubscription = null;
+        var currentMessengerPendingImage = null;
         var pendingRawAvatar = null; // Lưu ảnh gốc khi đang chỉnh sửa
         var selectedMessageId = null; // ID tin nhắn đang chọn để xóa
         var currentSearchKeyword = ""; // Lưu từ khóa tìm kiếm hiện tại
@@ -418,7 +421,7 @@
                     activeChats[partnerUsername].searchKeyword = searchKeyword;
                     const msgArea = document.querySelector(`#msg-area-${partnerUsername}`);
                     if (msgArea) msgArea.innerHTML = ''; // Xóa cũ để vẽ lại
-                    loadChatHistory(activeChats[partnerUsername].roomId, partnerUsername, partnerName);
+                    loadChatHistory(activeChats[partnerUsername].roomId, partnerUsername, partnerName, 'CHAT_HEAD');
                 }
                 return;
             }
@@ -429,7 +432,7 @@
 
             createChatWindowUI(partnerUser, roomId, searchKeyword);
             subscribeToRoom(partnerUsername, roomId);
-            loadChatHistory(roomId, partnerUsername, partnerName);
+            loadChatHistory(roomId, partnerUsername, partnerName, 'CHAT_HEAD');
             sendReadReceipt(partnerUsername, roomId); // Báo đã xem ngay khi mở chat
             updateStatusUI(partnerUsername, partnerUser.status, partnerUser.lastActive); // Hiển thị trạng thái ban đầu
         }
@@ -686,6 +689,9 @@
         }
 
         function selectMessengerConversation(partnerUser) {
+            currentMessengerPartnerUsername = partnerUser.username;
+            const roomId = [username, partnerUser.username].sort().join('_');
+
             // 1. Ẩn Empty State, Hiện Content
             document.getElementById('search-empty-state').classList.add('hidden');
             document.getElementById('search-content-container').classList.remove('hidden');
@@ -707,13 +713,18 @@
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="#0084ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
                     </div>
                 </div>
-                <ul class="search-chat-body" id="messenger-chat-body-ul" style="padding: 10px; flex-grow: 1;">Đang tải...</ul>
+                <ul class="search-chat-body" id="messenger-chat-body-ul" style="padding: 10px; flex-grow: 1;"></ul>
                 <div class="chat-window-footer" style="border-top: 1px solid #ddd; padding: 10px;">
-                    <form onsubmit="event.preventDefault(); alert('Tính năng này đang phát triển');" style="display: flex; align-items: center;">
+                    <div id="messenger-preview-container" class="image-preview-container">
+                        <img id="messenger-preview-img" class="image-preview" src="" alt="Preview">
+                        <div class="remove-image-btn" onclick="removeMessengerImage()">&times;</div>
+                    </div>
+                    <form onsubmit="sendMessengerMessage(event, '${partnerUser.username}')" style="display: flex; align-items: center;">
                         <label class="attach-btn" title="Gửi ảnh" style="margin-right: 10px;">
+                            <input type="file" accept="image/*" style="display: none" onchange="handleMessengerFileSelect(event)">
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                         </label>
-                        <textarea placeholder="Nhập tin nhắn..." rows="1" style="flex-grow: 1; border-radius: 20px; padding: 8px 12px; border: none; background: #f0f2f5; resize: none;"></textarea>
+                        <textarea id="messenger-input" placeholder="Nhập tin nhắn..." rows="1" style="flex-grow: 1; border-radius: 20px; padding: 8px 12px; border: none; background: #f0f2f5; resize: none;" oninput="autoResize(this); handleTyping('${partnerUser.username}')" onkeydown="handleEnterMessenger(event, '${partnerUser.username}')"></textarea>
                         <button type="submit" style="margin-left: 10px; background: none; border: none; color: #0084ff; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                         </button>
@@ -743,18 +754,16 @@
                 </div>
             `;
 
-            // Tải lịch sử chat
-            const myName = document.querySelector('#login-username').value.trim();
-            const roomId = [myName, partnerUser.username].sort().join('_');
+            // Subscribe và tải lịch sử
+            if (currentMessengerSubscription) currentMessengerSubscription.unsubscribe();
+            if (currentMessengerSubscription) {
+                try { currentMessengerSubscription.unsubscribe(); } catch (e) {}
+                currentMessengerSubscription = null;
+            }
+            subscribeToRoom(partnerUser.username, roomId);
 
-            fetch('/api/messages/' + roomId + '?username=' + username)
-                .then(res => res.json())
-                .then(messages => {
-                    const ul = document.getElementById('messenger-chat-body-ul');
-                    ul.innerHTML = '';
-                    messages.forEach(msg => renderSearchChatMessage(ul, msg, partnerUser.username, ''));
-                    ul.scrollTop = ul.scrollHeight;
-                });
+            // Tải lịch sử chat
+            loadChatHistory(roomId, partnerUser.username, partnerUser.displayName || partnerUser.username, 'MESSENGER');
         }
 
         function handleSearchBack() {
@@ -766,6 +775,16 @@
             } else {
                 // Đang ở danh sách kết quả -> Đóng giao diện tìm kiếm
                 closeSearchInterface();
+                
+                // Nếu đang mở Messenger, hủy đăng ký để tránh rò rỉ, TRỪ KHI đang có Chat Head (để Chat Head vẫn chạy)
+                if (currentMessengerPartnerUsername && currentMessengerSubscription) {
+                    if (!activeChats[currentMessengerPartnerUsername]) {
+                        try { currentMessengerSubscription.unsubscribe(); } catch (e) {}
+                    }
+                    currentMessengerSubscription = null;
+                }
+                
+                currentMessengerPartnerUsername = null;
             }
         }
 
@@ -1118,12 +1137,12 @@
                 });
         }
 
-        function loadChatHistory(roomId, partnerUsername, partnerName) {
+        function loadChatHistory(roomId, partnerUsername, partnerName, renderTarget = 'ALL') {
             // Truyền thêm username để server lọc tin nhắn đã xóa
             fetch('/api/messages/' + roomId + '?username=' + username)
                 .then(res => res.json())
                 .then(messages => {
-                    messages.forEach(msg => drawMessage(msg, partnerUsername));
+                    messages.forEach(msg => drawMessage(msg, partnerUsername, renderTarget));
                     
                     // Sau khi tải lịch sử, kiểm tra xem tin nhắn cuối cùng của mình đã được xem chưa
                     const myMsgs = messages.filter(m => m.sender === username);
@@ -1255,13 +1274,15 @@
                 // Xử lý sự kiện REACT (Thả cảm xúc)
                 if (msg.type === 'REACT') {
                     // Tìm tin nhắn trong DOM và cập nhật reactions
-                    const msgEl = document.getElementById(`msg-${msg.id}`);
-                    if (msgEl) {
-                        const bubble = msgEl.querySelector('.bubble');
-                        if (bubble) {
-                            renderReactionsOnBubble(bubble, msg.reactions);
+                    // Cập nhật cho cả chat head và messenger view
+                    const ids = [`msg-${msg.id}`, `msg-messenger-${msg.id}`];
+                    ids.forEach(id => {
+                        const msgEl = document.getElementById(id);
+                        if (msgEl) {
+                            const bubble = msgEl.querySelector('.bubble');
+                            if (bubble) renderReactionsOnBubble(bubble, msg.reactions);
                         }
-                    }
+                    });
                 }
                 // Xử lý sự kiện TYPING
                 if (msg.type === 'TYPING' && msg.sender !== username) {
@@ -1270,7 +1291,16 @@
             });
             
             if (activeChats[partnerUsername]) {
+                if (activeChats[partnerUsername].subscription) {
+                    activeChats[partnerUsername].subscription.unsubscribe();
+                    try { activeChats[partnerUsername].subscription.unsubscribe(); } catch (e) {}
+                }
                 activeChats[partnerUsername].subscription = sub;
+            }
+            
+            // Nếu đang mở giao diện Messenger Fullscreen với người này
+            if (partnerUsername === currentMessengerPartnerUsername) {
+                currentMessengerSubscription = sub;
             }
         }
 
@@ -1357,27 +1387,38 @@
             return new RegExp(`(${regexStr})`, 'gi');
         }
 
-        function drawMessage(message, partnerUsername) {
-            // Tìm đúng khung chat để vẽ tin nhắn
-            var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
-            if (!messageArea) return; // Nếu cửa sổ chat đã đóng thì bỏ qua
+        function drawMessage(message, partnerUsername, renderTarget = 'ALL') {
+            // Xác định các nơi cần vẽ tin nhắn (Chat Head và Messenger View)
+            const targets = [];
+            if (renderTarget === 'ALL' || renderTarget === 'CHAT_HEAD') {
+                const chatHeadArea = document.querySelector(`#msg-area-${partnerUsername}`);
+                if (chatHeadArea) targets.push({ el: chatHeadArea, prefix: '' });
+            }
+            
+            if (renderTarget === 'ALL' || renderTarget === 'MESSENGER') {
+                const messengerArea = document.getElementById('messenger-chat-body-ul');
+                if (messengerArea && partnerUsername === currentMessengerPartnerUsername) {
+                    targets.push({ el: messengerArea, prefix: 'messenger-' });
+                }
+            }
 
-            var messageLi = document.createElement('li');
-            messageLi.id = `msg-${message.id}`; // Thêm ID để dễ dàng xóa
+            if (targets.length === 0 && message.type !== 'READ') return;
 
             // Xử lý sự kiện ĐÃ XEM (READ)
             if (message.type === 'READ') {
                 if (message.sender !== username) { // Người kia đã đọc tin nhắn của mình
-                    // Xóa icon cũ
-                    const oldIcons = document.querySelectorAll(`#msg-area-${partnerUsername} .seen-icon`);
-                    oldIcons.forEach(el => el.remove());
+                    targets.forEach(target => {
+                        // Xóa icon cũ
+                        const oldIcons = target.el.querySelectorAll('.seen-icon');
+                        oldIcons.forEach(el => el.remove());
 
-                    // Tìm tin nhắn cuối cùng của mình để gắn icon
-                    const myMsgs = document.querySelectorAll(`#msg-area-${partnerUsername} .my-message-container`);
-                    if(myMsgs.length > 0) {
-                        const lastMsg = myMsgs[myMsgs.length - 1];
-                        addSeenIcon(lastMsg, message.sender);
-                    }
+                        // Tìm tin nhắn cuối cùng của mình để gắn icon
+                        const myMsgs = target.el.querySelectorAll('.my-message-container');
+                        if(myMsgs.length > 0) {
+                            const lastMsg = myMsgs[myMsgs.length - 1];
+                            addSeenIcon(lastMsg, message.sender);
+                        }
+                    });
                 }
                 return; // Không vẽ tin nhắn, chỉ xử lý icon
             }
@@ -1392,6 +1433,11 @@
                 return;
             }
 
+            targets.forEach(target => {
+                const messageArea = target.el;
+                var messageLi = document.createElement('li');
+                messageLi.id = `msg-${target.prefix}${message.id}`;
+
             // --- XỬ LÝ DÒNG THỜI GIAN (SEPARATOR) ---
             var currentMsgDate = parseDate(message.timestamp);
             var currentTimestamp = currentMsgDate ? currentMsgDate.getTime() : Date.now();
@@ -1400,13 +1446,13 @@
             const previousMsgs = messageArea.querySelectorAll('li[data-timestamp]');
             
             if (previousMsgs.length === 0) {
-                addDateSeparator(message.timestamp, partnerUsername);
+                addDateSeparatorToArea(messageArea, message.timestamp);
             } else {
                 const lastMsg = previousMsgs[previousMsgs.length - 1];
                 const lastTimestamp = parseInt(lastMsg.getAttribute('data-timestamp'));
                 // Nếu cách nhau quá 5 phút (300000 ms) thì hiện lại dòng thời gian
                 if (currentTimestamp - lastTimestamp > 5 * 60 * 1000) {
-                    addDateSeparator(message.timestamp, partnerUsername);
+                    addDateSeparatorToArea(messageArea, message.timestamp);
                 }
             }
             
@@ -1444,7 +1490,7 @@
                     } else {
                         // Xử lý Highlight từ khóa
                         let contentHtml = escapeHtml(message.content);
-                        const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
+                        const keyword = (!target.prefix && activeChats[partnerUsername]) ? activeChats[partnerUsername].searchKeyword : null;
                         
                         if (keyword) {
                             // Tạo Regex tìm kiếm không phân biệt hoa thường và dấu
@@ -1478,7 +1524,7 @@
                     } else {
                         // Xử lý Highlight từ khóa
                         let contentHtml = escapeHtml(message.content);
-                        const keyword = activeChats[partnerUsername] ? activeChats[partnerUsername].searchKeyword : null;
+                        const keyword = (!target.prefix && activeChats[partnerUsername]) ? activeChats[partnerUsername].searchKeyword : null;
                         
                         if (keyword) {
                             const regex = getVietnameseRegex(keyword);
@@ -1502,9 +1548,12 @@
             
             // Chỉ tự động cuộn xuống cuối nếu KHÔNG phải đang tìm kiếm
             // (Logic cuộn khi tìm kiếm được xử lý trong loadChatHistory)
-            if (!activeChats[partnerUsername] || !activeChats[partnerUsername].searchKeyword) {
+            if (!target.prefix && activeChats[partnerUsername] && activeChats[partnerUsername].searchKeyword) {
+                // Không auto scroll nếu đang search trong chat head
+            } else {
                 messageArea.scrollTop = messageArea.scrollHeight;
             }
+            });
         }
 
         // --- XỬ LÝ MESSAGE ACTIONS (3 CHẤM + REACTION) ---
@@ -1673,15 +1722,18 @@
             }
         }
 
-        function renderReactionsOnBubble(bubble, reactionsJson) {
+        function renderReactionsOnBubble(bubble, reactionsData) {
             // Xóa hiển thị cũ nếu có
             const oldDisplay = bubble.querySelector('.message-reactions-display');
             if (oldDisplay) oldDisplay.remove();
 
-            if (!reactionsJson) return;
+            if (!reactionsData) return;
 
             try {
-                const reactions = JSON.parse(reactionsJson);
+                let reactions = reactionsData;
+                if (typeof reactionsData === 'string') {
+                    reactions = JSON.parse(reactionsData);
+                }
                 const counts = {};
                 let total = 0;
                 
@@ -1779,11 +1831,12 @@
             fetch(`/api/messages/single/${message.id}?username=${username}`, { method: 'DELETE' })
                 .then(res => {
                     if (res.ok) {
-                        // Xóa tin nhắn khỏi giao diện ngay lập tức
-                        const msgEl = document.getElementById(`msg-${message.id}`);
-                        if (msgEl) {
-                            msgEl.remove();
-                        }
+                        // Xóa tin nhắn khỏi giao diện ngay lập tức (cả 2 nơi nếu có)
+                        const ids = [`msg-${message.id}`, `msg-messenger-${message.id}`];
+                        ids.forEach(id => {
+                            const msgEl = document.getElementById(id);
+                            if (msgEl) msgEl.remove();
+                        });
                     }
                 });
             closeRemoveMsgModal();
@@ -1797,7 +1850,10 @@
         function addDateSeparator(timestamp, partnerUsername) {
             var messageArea = document.querySelector(`#msg-area-${partnerUsername}`);
             if (!messageArea) return;
-            
+            addDateSeparatorToArea(messageArea, timestamp);
+        }
+
+        function addDateSeparatorToArea(messageArea, timestamp) {
             var li = document.createElement('li');
             li.className = 'date-separator';
             li.textContent = formatFullDate(timestamp);
@@ -1825,7 +1881,7 @@
         }
 
         function sendReadReceipt(partnerUsername, roomId) {
-            if(stompClient && activeChats[partnerUsername]) {
+            if(stompClient && (activeChats[partnerUsername] || partnerUsername === currentMessengerPartnerUsername)) {
                 stompClient.send("/app/chat.read", {}, JSON.stringify({
                     sender: username, // Tôi là người đọc
                     type: 'READ',
@@ -1839,8 +1895,8 @@
         function handleTyping(partnerUsername) {
             const now = Date.now();
             // Chỉ gửi sự kiện mỗi 2 giây để tránh spam server
-            if (now - lastTypingTime > 2000 && stompClient && activeChats[partnerUsername]) {
-                const roomId = activeChats[partnerUsername].roomId;
+            if (now - lastTypingTime > 2000 && stompClient && (activeChats[partnerUsername] || partnerUsername === currentMessengerPartnerUsername)) {
+                const roomId = [username, partnerUsername].sort().join('_');
                 stompClient.send("/app/chat.typing", {}, JSON.stringify({
                     sender: username,
                     type: 'TYPING',
@@ -1863,10 +1919,15 @@
             indicator.classList.add('visible');
 
             // Xóa timeout cũ và đặt timeout mới để ẩn thông báo sau 3 giây
-            if (activeChats[partnerUsername].typingTimeout) clearTimeout(activeChats[partnerUsername].typingTimeout);
-            activeChats[partnerUsername].typingTimeout = setTimeout(() => {
+            // Lưu timeout vào activeChats nếu có, hoặc biến global nếu không
+            let timeoutObj = activeChats[partnerUsername] || {};
+            if (timeoutObj.typingTimeout) clearTimeout(timeoutObj.typingTimeout);
+            
+            const timeoutId = setTimeout(() => {
                 indicator.classList.remove('visible');
             }, 3000);
+            
+            if (activeChats[partnerUsername]) activeChats[partnerUsername].typingTimeout = timeoutId;
         }
 
         function autoResize(textarea) {
@@ -1879,6 +1940,13 @@
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage(event, partnerUsername);
+            }
+        }
+
+        function handleEnterMessenger(event, partnerUsername) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessengerMessage(event, partnerUsername);
             }
         }
 
@@ -1944,6 +2012,53 @@
                 input.value = '';
                 input.style.height = 'auto'; // Reset chiều cao về 1 dòng
             }
+        }
+
+        // --- GỬI TIN NHẮN TỪ GIAO DIỆN MESSENGER FULLSCREEN ---
+        function sendMessengerMessage(event, partnerUsername) {
+            if(event.preventDefault) event.preventDefault();
+            
+            const input = document.getElementById('messenger-input');
+            const content = input.value.trim();
+            const hasImage = !!currentMessengerPendingImage;
+            
+            if ((content || hasImage) && stompClient) {
+                const roomId = [username, partnerUsername].sort().join('_');
+                
+                if (hasImage) {
+                    stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                        sender: username, content: currentMessengerPendingImage, type: 'IMAGE', roomId: roomId
+                    }));
+                    removeMessengerImage();
+                }
+
+                if (content) {
+                    stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                        sender: username, content: content, type: 'CHAT', roomId: roomId
+                    }));
+                }
+                
+                input.value = '';
+                input.style.height = 'auto';
+            }
+        }
+
+        function handleMessengerFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentMessengerPendingImage = e.target.result;
+                document.getElementById('messenger-preview-img').src = currentMessengerPendingImage;
+                document.getElementById('messenger-preview-container').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function removeMessengerImage() {
+            document.getElementById('messenger-preview-container').style.display = 'none';
+            currentMessengerPendingImage = null;
         }
 
         // --- HÀM XỬ LÝ TRẠNG THÁI & THỜI GIAN ---
