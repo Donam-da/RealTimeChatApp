@@ -18,6 +18,19 @@
         </svg>
     </div>
 
+    <!-- Nút Tìm kiếm toàn cục -->
+    <div id="global-search-btn" class="home-btn hidden" style="left: 80px;" onclick="toggleGlobalSearch()" title="Tìm kiếm người dùng">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+    </div>
+
+    <!-- Thanh tìm kiếm toàn cục -->
+    <div id="global-search-bar" class="global-search-bar hidden">
+        <input type="text" id="global-search-input" placeholder="Tìm kiếm người dùng" oninput="handleGlobalUserSearch(this.value)">
+        <div id="global-search-results" class="global-search-results hidden"></div>
+    </div>
+
     <!-- Loading Spinner (Hiển thị khi ấn Home) -->
     <div id="home-loader" class="home-loader hidden"></div>
 
@@ -180,6 +193,50 @@
         </div>
     </div>
 
+    <!-- Trang cá nhân người dùng (Facebook Style) -->
+    <div id="user-profile-overlay" class="modal hidden" style="background: rgba(240, 242, 245, 0.95); z-index: 9500;">
+        <div class="profile-container-card">
+            <div class="profile-header-section">
+                <button class="profile-close-btn" onclick="closeUserProfile()">&times;</button>
+                <!-- Ảnh bìa (Gradient ngẫu nhiên) -->
+                <div id="profile-cover" class="profile-cover"></div>
+                <!-- Ảnh đại diện -->
+                <div class="profile-avatar-wrapper">
+                    <div id="profile-avatar-large" class="profile-avatar-large"></div>
+                    <div id="profile-status-indicator" class="profile-status-indicator"></div>
+                </div>
+            </div>
+            
+            <div class="profile-info-section">
+                <h1 id="profile-name" class="profile-name"></h1>
+                <p id="profile-username" class="profile-username"></p>
+                
+                <div class="profile-actions">
+                    <button id="profile-msg-btn" class="profile-btn btn-primary">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                        Nhắn tin
+                    </button>
+                    <button class="profile-btn btn-secondary">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        Thêm bạn bè
+                    </button>
+                </div>
+
+                <div class="profile-details-box">
+                    <h3>Giới thiệu</h3>
+                    <div class="detail-item">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="#65676b"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        <span id="profile-last-active"></span>
+                    </div>
+                    <div class="detail-item">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="#65676b"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <span>Thành viên của RealTimeChat</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Style cho nút Home -->
     <style>
         .home-btn {
@@ -221,10 +278,131 @@
             animation: spinLoader 0.8s linear infinite;
             z-index: 9000;
         }
+        .global-search-bar {
+            position: fixed;
+            top: 15px;
+            left: 140px; /* 80px (btn) + 45px (width) + 15px (gap) */
+            height: 45px;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 9000;
+            width: 300px;
+        }
+        .global-search-bar input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 15px;
+        }
+        .global-search-results {
+            position: absolute;
+            top: 55px;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 5px 0;
+        }
         @keyframes spinLoader {
             0% { transform: translateX(-50%) rotate(0deg); }
             100% { transform: translateX(-50%) rotate(360deg); }
         }
+        
+        /* CSS cho Trang cá nhân (Facebook Style) */
+        .profile-container-card {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            margin: 0 auto;
+            height: 100%;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .profile-header-section {
+            position: relative;
+            margin-bottom: 30px;
+        }
+        .profile-cover {
+            height: 300px;
+            background: linear-gradient(to right, #0084ff, #00c6ff);
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .profile-close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            border: none;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .profile-close-btn:hover { background: rgba(255,255,255,0.5); }
+        .profile-avatar-wrapper {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .profile-avatar-large {
+            width: 168px;
+            height: 168px;
+            border-radius: 50%;
+            border: 5px solid white;
+            background-color: #ddd;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            font-weight: bold;
+        }
+        .profile-status-indicator {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 4px solid white;
+            background-color: #31a24c; /* Online green */
+        }
+        .profile-info-section {
+            padding: 0 20px 40px;
+            text-align: center;
+            margin-top: 40px;
+        }
+        .profile-name { font-size: 32px; font-weight: bold; margin: 0; color: #050505; }
+        .profile-username { font-size: 16px; color: #65676b; margin: 5px 0 20px; }
+        .profile-actions { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid #ddd; padding-bottom: 30px; }
+        .profile-btn {
+            padding: 0 20px; height: 36px; border-radius: 6px; font-weight: 600; font-size: 15px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+        }
+        .btn-primary { background-color: #0084ff; color: white; }
+        .btn-primary:hover { background-color: #0073e6; }
+        .btn-secondary { background-color: #e4e6eb; color: #050505; }
+        .btn-secondary:hover { background-color: #d8dadf; }
+        .profile-details-box { background: #f0f2f5; padding: 15px; border-radius: 8px; text-align: left; max-width: 500px; margin: 0 auto; }
+        .profile-details-box h3 { margin: 0 0 15px; font-size: 20px; }
+        .detail-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: #050505; font-size: 15px; }
     </style>
 
     <!-- Trình xem ảnh toàn màn hình (Di chuyển xuống dưới cùng để hiển thị trên các overlay khác) -->
@@ -301,6 +479,7 @@
                 // Hiển thị header controls và cập nhật avatar
                 const headerControls = document.getElementById('header-controls');
                 document.getElementById('home-btn').classList.remove('hidden'); // Hiện nút Home
+                document.getElementById('global-search-btn').classList.remove('hidden'); // Hiện nút Search
                 headerControls.classList.remove('hidden');
                 setElementAvatar(document.getElementById('my-avatar'), myDisplayName, myAvatarData);
                 
@@ -327,6 +506,8 @@
             Object.keys(activeChats).forEach(u => closeChatWindow(u));
             activeChats = {};
             document.getElementById('home-btn').classList.add('hidden'); // Ẩn nút Home
+            document.getElementById('global-search-btn').classList.add('hidden'); // Ẩn nút Search
+            document.getElementById('global-search-bar').classList.add('hidden'); // Ẩn thanh search
             document.getElementById('header-controls').classList.add('hidden'); // Ẩn header controls
             document.querySelector('#username-page').classList.remove('hidden');
         }
@@ -907,7 +1088,11 @@
             closeCropModal();
             closeRemoveMsgModal();
             closeFloatingMenus();
+            closeUserProfile();
             
+            // Đóng thanh tìm kiếm toàn cục
+            document.getElementById('global-search-bar').classList.add('hidden');
+
             // Đóng các dropdown menu
             const dropdowns = document.querySelectorAll('.show');
             dropdowns.forEach(d => d.classList.remove('show'));
@@ -2680,6 +2865,118 @@
             preview.dataset.newAvatar = base64;
             
             closeCropModal();
+        }
+
+        // --- TÌM KIẾM TOÀN CỤC (GLOBAL SEARCH) ---
+        function toggleGlobalSearch() {
+            const bar = document.getElementById('global-search-bar');
+            const input = document.getElementById('global-search-input');
+            const isHidden = bar.classList.contains('hidden');
+            
+            if (isHidden) {
+                bar.classList.remove('hidden');
+                input.focus();
+                handleGlobalUserSearch(''); // Hiển thị danh sách ngay khi mở
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        function handleGlobalUserSearch(keyword) {
+            const resultsContainer = document.getElementById('global-search-results');
+            const searchTerm = keyword.trim().toLowerCase();
+            
+            let matches;
+            if (!searchTerm) {
+                // Nếu không nhập gì, hiển thị tất cả người dùng
+                matches = allUsers;
+            } else {
+                // Lọc từ danh sách allUsers đã tải
+                matches = allUsers.filter(u => 
+                    (u.displayName && u.displayName.toLowerCase().includes(searchTerm)) || 
+                    u.username.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            resultsContainer.innerHTML = '';
+            if (matches.length > 0) {
+                matches.forEach(user => {
+                    // Tạo item đơn giản: Avatar + Tên (theo yêu cầu)
+                    const item = document.createElement('div');
+                    item.className = 'chat-item';
+                    item.style.alignItems = 'center';
+                    item.style.padding = '8px 15px';
+
+                    const avatar = document.createElement('div');
+                    avatar.className = 'chat-item-avatar';
+                    avatar.style.width = '36px';
+                    avatar.style.height = '36px';
+                    avatar.style.marginRight = '12px';
+                    setElementAvatar(avatar, user.displayName || user.username, user.avatar);
+
+                    const nameEl = document.createElement('div');
+                    nameEl.textContent = user.displayName || user.username;
+                    nameEl.style.fontWeight = '500';
+                    nameEl.style.fontSize = '15px';
+
+                    item.appendChild(avatar);
+                    item.appendChild(nameEl);
+
+                    item.onclick = () => {
+                        openUserProfile(user); // Mở trang cá nhân thay vì chat ngay
+                    };
+                    resultsContainer.appendChild(item);
+                });
+                resultsContainer.classList.remove('hidden');
+            } else {
+                resultsContainer.innerHTML = '<div style="padding:10px 20px; color:#65676b; font-size:14px;">Không tìm thấy người dùng</div>';
+                resultsContainer.classList.remove('hidden');
+            }
+        }
+
+        // --- TRANG CÁ NHÂN (USER PROFILE) ---
+        function openUserProfile(user) {
+            const modal = document.getElementById('user-profile-overlay');
+            
+            // Cập nhật thông tin
+            const displayName = user.displayName || user.username;
+            document.getElementById('profile-name').textContent = displayName;
+            document.getElementById('profile-username').textContent = '@' + user.username;
+            
+            // Avatar
+            const avatarEl = document.getElementById('profile-avatar-large');
+            setElementAvatar(avatarEl, displayName, user.avatar);
+            
+            // Cover (Tạo gradient dựa trên tên để đẹp hơn)
+            const color = getAvatarColor(displayName);
+            document.getElementById('profile-cover').style.background = `linear-gradient(135deg, ${color}, #0084ff)`;
+            
+            // Trạng thái
+            const statusIndicator = document.getElementById('profile-status-indicator');
+            const lastActiveText = document.getElementById('profile-last-active');
+            
+            if (user.status === 'ONLINE') {
+                statusIndicator.style.backgroundColor = '#31a24c';
+                lastActiveText.textContent = 'Đang hoạt động';
+            } else {
+                statusIndicator.style.backgroundColor = '#ccc';
+                lastActiveText.textContent = 'Hoạt động ' + timeSince(user.lastActive);
+            }
+
+            // Nút nhắn tin
+            const msgBtn = document.getElementById('profile-msg-btn');
+            msgBtn.onclick = () => {
+                closeUserProfile();
+                toggleGlobalSearch(); // Đóng thanh tìm kiếm
+                document.getElementById('global-search-input').value = '';
+                startChat(user);
+            };
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeUserProfile() {
+            document.getElementById('user-profile-overlay').classList.add('hidden');
         }
     </script>
 </body>
