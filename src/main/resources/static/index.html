@@ -673,12 +673,12 @@
 
                 if (user.lastMessage.type === 'IMAGE') {
                     if (isMyMessage) {
-                        content = 'đã gửi 1 ảnh';
+                        content = 'đã gửi 1 ảnh.';
                         prefix = 'Bạn ';
                     } else {
                         const fullName = user.displayName || user.username;
                         const lastName = fullName.trim().split(/\s+/).pop();
-                        content = `${lastName} đã gửi 1 ảnh`;
+                        content = `${lastName} đã gửi 1 ảnh.`;
                         prefix = '';
                     }
                 }
@@ -687,6 +687,10 @@
                 
                 const timeStr = getShortTime(user.lastMessage.timestamp);
                 const textContent = `${prefix}${content} · ${timeStr}`;
+                
+                const safePrefix = escapeHtml(prefix);
+                const safeContent = escapeHtml(content);
+                const htmlContent = `${safePrefix}${safeContent} <span style="margin: 0 4px; position: relative; top: -3px; font-weight: bold;">.</span> ${timeStr}`;
                 
                 // Reset style mặc định
                 statusEl.style.fontWeight = 'normal';
@@ -706,6 +710,7 @@
                     textSpan.style.whiteSpace = 'nowrap';
                     textSpan.style.flexGrow = '1';
                     textSpan.textContent = textContent;
+                    textSpan.innerHTML = htmlContent;
 
                     const blueDot = document.createElement('div');
                     blueDot.style.width = '12px';
@@ -729,6 +734,7 @@
                     textSpan.style.whiteSpace = 'nowrap';
                     textSpan.style.flexGrow = '1';
                     textSpan.textContent = textContent;
+                    textSpan.innerHTML = htmlContent;
                     
                     const seenIcon = document.createElement('div');
                     seenIcon.className = 'seen-icon-list';
@@ -738,6 +744,7 @@
                     statusEl.appendChild(seenIcon);
                 } else {
                     statusEl.textContent = textContent;
+                    statusEl.innerHTML = htmlContent;
                 }
             } else {
                 statusEl.textContent = "Các bạn đã kết nối trên Messenger";
