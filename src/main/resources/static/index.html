@@ -18,6 +18,9 @@
         </svg>
     </div>
 
+    <!-- Loading Spinner (Hiển thị khi ấn Home) -->
+    <div id="home-loader" class="home-loader hidden"></div>
+
     <!-- Header Controls (Logout + Profile) -->
     <div id="header-controls" class="header-controls hidden">
         <!-- Nút Chat (Messenger Style) -->
@@ -204,6 +207,23 @@
         }
         .home-btn.hidden {
             display: none !important;
+        }
+        .home-loader {
+            position: fixed;
+            top: 22.5px; /* Căn giữa theo chiều dọc với nút Home (15px + 45px/2 - 30px/2) */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f0f2f5;
+            border-top: 3px solid #0084ff;
+            border-radius: 50%;
+            animation: spinLoader 0.8s linear infinite;
+            z-index: 9000;
+        }
+        @keyframes spinLoader {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            100% { transform: translateX(-50%) rotate(360deg); }
         }
     </style>
 
@@ -860,6 +880,13 @@
 
         // --- CHỨC NĂNG VỀ TRANG CHỦ ---
         function goHome() {
+            // Hiển thị loading effect
+            const loader = document.getElementById('home-loader');
+            if (loader) {
+                loader.classList.remove('hidden');
+                setTimeout(() => loader.classList.add('hidden'), 800);
+            }
+
             // 1. Đóng giao diện Messenger Fullscreen / Tìm kiếm
             closeSearchInterface();
             
