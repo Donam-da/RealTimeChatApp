@@ -180,6 +180,18 @@
         </div>
     </div>
 
+    <!-- Modal Xác nhận Hủy kết bạn -->
+    <div id="unfriend-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3 style="margin-bottom: 10px;">Hủy kết bạn?</h3>
+            <p style="margin-bottom: 20px; color: #65676b;">Bạn có chắc chắn muốn xóa <strong id="unfriend-name"></strong> khỏi danh sách bạn bè không?</p>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-cancel" onclick="closeUnfriendModal()">Hủy</button>
+                <button class="btn-save" style="background-color: #e41e3f;" onclick="executeUnfriend()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Giao diện Tìm kiếm Tin nhắn (Full Screen) -->
     <div id="search-interface" class="search-interface-overlay hidden">
         <div class="search-interface-header" style="height: 60px; min-height: 60px; flex-shrink: 0; display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid #ddd; box-sizing: border-box; margin-top: 60px;">
@@ -232,10 +244,15 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                         Nhắn tin
                     </button>
-                    <button id="profile-add-friend-btn" class="profile-btn btn-secondary">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        Thêm bạn bè
-                    </button>
+                    <div style="position: relative;">
+                        <button id="profile-add-friend-btn" class="profile-btn btn-secondary">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            Thêm bạn bè
+                        </button>
+                        <div id="friend-dropdown" class="friend-dropdown hidden">
+                            <div class="friend-dropdown-item danger" onclick="showUnfriendConfirm()">Hủy kết bạn</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="profile-details-box">
@@ -456,6 +473,30 @@
         .profile-details-box { background: #f0f2f5; padding: 15px; border-radius: 8px; text-align: left; max-width: 500px; margin: 0 auto; }
         .profile-details-box h3 { margin: 0 0 15px; font-size: 20px; }
         .detail-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: #050505; font-size: 15px; }
+        
+        /* Dropdown cho nút Bạn bè */
+        .friend-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 6px;
+            margin-top: 5px;
+            z-index: 10;
+            overflow: hidden;
+        }
+        .friend-dropdown-item {
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            color: #050505;
+        }
+        .friend-dropdown-item:hover { background: #f0f2f5; }
+        .friend-dropdown-item.danger { color: #e41e3f; }
     </style>
 
     <!-- Trình xem ảnh toàn màn hình (Di chuyển xuống dưới cùng để hiển thị trên các overlay khác) -->
@@ -484,6 +525,7 @@
         var notifications = []; // Danh sách thông báo
         var sentFriendRequests = new Set(); // Danh sách người đã gửi lời mời
         var friends = new Set(); // Danh sách bạn bè
+        var currentProfileUser = null; // Người dùng đang xem profile
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -665,7 +707,7 @@
             
             if (matchCount !== undefined) {
                 statusEl.textContent = `${matchCount} tin nhắn trùng khớp`;
-            } else if (user.lastMessage && user.lastMessage.type !== 'FRIEND_REQUEST' && user.lastMessage.type !== 'FRIEND_ACCEPT') {
+            } else if (user.lastMessage && user.lastMessage.type !== 'FRIEND_REQUEST' && user.lastMessage.type !== 'FRIEND_ACCEPT' && user.lastMessage.type !== 'UNFRIEND') {
                 // Hiển thị tin nhắn gần nhất (Messenger Style)
                 let content = user.lastMessage.content;
                 const isMyMessage = user.lastMessage.sender === username;
@@ -1510,6 +1552,13 @@
                     notifList.classList.remove('show');
                 }
             }
+            // Đóng friend dropdown
+            if (!event.target.closest('#profile-add-friend-btn') && !event.target.closest('#friend-dropdown')) {
+                const friendDropdown = document.getElementById('friend-dropdown');
+                if (friendDropdown && !friendDropdown.classList.contains('hidden')) {
+                    friendDropdown.classList.add('hidden');
+                }
+            }
         }
 
         function deleteChat(partnerUsername) {
@@ -1640,6 +1689,11 @@
                             addFriendBtn.onclick = null;
                         }
                     }
+                }
+
+                // Xử lý thông báo hủy kết bạn (để cập nhật real-time)
+                if (msg.type === 'UNFRIEND') {
+                    friends.delete(msg.sender);
                 }
                 
                 // Tìm user tương ứng trong danh sách
@@ -1919,7 +1973,7 @@
             }
 
             // Xử lý sự kiện KẾT BẠN (Không vẽ trong chat, chỉ hiện ở thông báo)
-            if (message.type === 'FRIEND_REQUEST' || message.type === 'FRIEND_ACCEPT') {
+            if (message.type === 'FRIEND_REQUEST' || message.type === 'FRIEND_ACCEPT' || message.type === 'UNFRIEND') {
                 return;
             }
 
@@ -3121,6 +3175,7 @@
         // --- TRANG CÁ NHÂN (USER PROFILE) ---
         function openUserProfile(user) {
             const modal = document.getElementById('user-profile-overlay');
+            currentProfileUser = user;
             
             // Cập nhật thông tin
             const displayName = user.displayName || user.username;
@@ -3163,6 +3218,8 @@
             addFriendBtn.className = 'profile-btn btn-secondary';
             addFriendBtn.textContent = '...';
             addFriendBtn.onclick = null;
+            
+            document.getElementById('friend-dropdown').classList.add('hidden'); // Ẩn dropdown nếu đang mở
 
             // KIỂM TRA TRẠNG THÁI TỪ SERVER (LỊCH SỬ CHAT)
             const roomId = [username, user.username].sort().join('_');
@@ -3177,6 +3234,10 @@
                             status = 'FRIEND';
                             break;
                         }
+                        if (msg.type === 'UNFRIEND') {
+                            status = 'NONE';
+                            break;
+                        }
                         if (msg.type === 'FRIEND_REQUEST') {
                             status = (msg.sender === username) ? 'SENT' : 'RECEIVED';
                             break;
@@ -3187,7 +3248,7 @@
                     if (status === 'FRIEND') {
                         addFriendBtn.textContent = 'Bạn bè';
                         addFriendBtn.className = 'profile-btn btn-secondary';
-                        addFriendBtn.onclick = null;
+                        addFriendBtn.onclick = toggleFriendDropdown;
                         friends.add(user.username); // Cập nhật lại cache client
                     } else if (status === 'SENT') {
                         addFriendBtn.textContent = 'Hủy lời mời';
@@ -3207,6 +3268,45 @@
                 });
 
             modal.classList.remove('hidden');
+        }
+
+        function toggleFriendDropdown() {
+            const dropdown = document.getElementById('friend-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        function showUnfriendConfirm() {
+            document.getElementById('friend-dropdown').classList.add('hidden');
+            if (currentProfileUser) {
+                document.getElementById('unfriend-name').textContent = currentProfileUser.displayName || currentProfileUser.username;
+                document.getElementById('unfriend-modal').classList.remove('hidden');
+            }
+        }
+
+        function closeUnfriendModal() {
+            document.getElementById('unfriend-modal').classList.add('hidden');
+        }
+
+        function executeUnfriend() {
+            if (currentProfileUser && stompClient) {
+                const targetUsername = currentProfileUser.username;
+                const roomId = [username, targetUsername].sort().join('_');
+                
+                // Gửi tin nhắn hệ thống để đánh dấu đã hủy kết bạn
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                    sender: username,
+                    content: 'đã hủy kết bạn',
+                    type: 'UNFRIEND',
+                    roomId: roomId
+                }));
+
+                friends.delete(targetUsername);
+                
+                // Cập nhật lại giao diện profile ngay lập tức
+                openUserProfile(currentProfileUser);
+                
+                closeUnfriendModal();
+            }
         }
 
         function sendFriendRequest(targetUsername) {
@@ -3253,7 +3353,7 @@
             if (addFriendBtn) {
                 addFriendBtn.textContent = 'Bạn bè';
                 addFriendBtn.className = 'profile-btn btn-secondary';
-                addFriendBtn.onclick = null; 
+                addFriendBtn.onclick = toggleFriendDropdown;
             }
 
             // Gửi thông báo cho đối phương
@@ -3270,6 +3370,7 @@
 
         function closeUserProfile() {
             document.getElementById('user-profile-overlay').classList.add('hidden');
+            document.getElementById('friend-dropdown').classList.add('hidden');
         }
     </script>
 </body>
