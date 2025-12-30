@@ -665,14 +665,26 @@
             
             if (matchCount !== undefined) {
                 statusEl.textContent = `${matchCount} tin nhắn trùng khớp`;
-            } else if (user.lastMessage) {
+            } else if (user.lastMessage && user.lastMessage.type !== 'FRIEND_REQUEST' && user.lastMessage.type !== 'FRIEND_ACCEPT') {
                 // Hiển thị tin nhắn gần nhất (Messenger Style)
                 let content = user.lastMessage.content;
-                if (user.lastMessage.type === 'IMAGE') content = 'Đã gửi 1 ảnh';
+                const isMyMessage = user.lastMessage.sender === username;
+                let prefix = isMyMessage ? 'Bạn: ' : '';
+
+                if (user.lastMessage.type === 'IMAGE') {
+                    if (isMyMessage) {
+                        content = 'đã gửi 1 ảnh';
+                        prefix = 'Bạn ';
+                    } else {
+                        const fullName = user.displayName || user.username;
+                        const lastName = fullName.trim().split(/\s+/).pop();
+                        content = `${lastName} đã gửi 1 ảnh`;
+                        prefix = '';
+                    }
+                }
+
                 if (user.lastMessage.type === 'REVOKED') content = 'Tin nhắn đã bị thu hồi';
                 
-                const isMyMessage = user.lastMessage.sender === username;
-                const prefix = isMyMessage ? 'Bạn: ' : '';
                 const timeStr = getShortTime(user.lastMessage.timestamp);
                 const textContent = `${prefix}${content} · ${timeStr}`;
                 
