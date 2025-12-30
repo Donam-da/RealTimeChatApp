@@ -56,11 +56,18 @@
         </div>
 
         <!-- Nút Thông báo -->
-        <div class="notification-container" style="margin: 0 10px;">
-            <div class="chat-list-btn" title="Thông báo">
+        <div class="notification-container" style="margin: 0 10px; position: relative;">
+            <div class="chat-list-btn" title="Thông báo" onclick="toggleNotificationList()">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
                     <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
                 </svg>
+                <div id="notification-badge" class="notification-badge hidden">0</div>
+            </div>
+            <div id="notification-dropdown" class="notification-dropdown">
+                <div class="notification-header">Thông báo</div>
+                <div id="notification-list-items" class="notification-list-items">
+                    <div style="padding:20px; text-align:center; color:#65676b;">Không có thông báo nào</div>
+                </div>
             </div>
         </div>
 
@@ -225,7 +232,7 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                         Nhắn tin
                     </button>
-                    <button class="profile-btn btn-secondary">
+                    <button id="profile-add-friend-btn" class="profile-btn btn-secondary">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                         Thêm bạn bè
                     </button>
@@ -319,6 +326,43 @@
             overflow-y: auto;
             padding: 5px 0;
         }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #e41e3f;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid white;
+            min-width: 15px;
+            text-align: center;
+        }
+        .notification-dropdown {
+            display: none;
+            position: absolute;
+            right: -60px;
+            top: 50px;
+            background-color: #fff;
+            min-width: 320px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 9000;
+        }
+        .notification-dropdown.show { display: block; }
+        .notification-header { padding: 15px; font-weight: bold; font-size: 20px; border-bottom: 1px solid #eee; }
+        .notification-list-items { max-height: 350px; overflow-y: auto; }
+        .notification-item { padding: 10px 15px; display: flex; align-items: center; cursor: pointer; transition: background 0.2s; position: relative; }
+        .notification-item:hover { background-color: #f0f2f5; }
+        .notification-item.unread { background-color: #e7f3ff; }
+        .notif-avatar { width: 48px; height: 48px; border-radius: 50%; margin-right: 12px; background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; }
+        .notif-content { font-size: 14px; line-height: 1.4; flex-grow: 1; }
+        .notif-content strong { font-weight: 600; }
+        .notif-time { font-size: 12px; color: #0084ff; font-weight: 600; margin-top: 4px; }
+        .notif-dot { width: 10px; height: 10px; background-color: #0084ff; border-radius: 50%; margin-left: 10px; }
         @keyframes spinLoader {
             0% { transform: translateX(-50%) rotate(0deg); }
             100% { transform: translateX(-50%) rotate(360deg); }
@@ -436,6 +480,10 @@
         var currentSearchKeyword = ""; // Lưu từ khóa tìm kiếm hiện tại
         var activeFloatingMenu = null; // Menu đang mở (Reaction bar hoặc Dropdown)
         var floatingMenuTimeout = null; // Timeout để đóng menu khi di chuột ra ngoài
+        var notificationCount = 0; // Số lượng thông báo
+        var notifications = []; // Danh sách thông báo
+        var sentFriendRequests = new Set(); // Danh sách người đã gửi lời mời
+        var friends = new Set(); // Danh sách bạn bè
 
         // CHUYỂN ĐỔI GIAO DIỆN
         function showRegister() {
@@ -511,6 +559,8 @@
             }
             username = null;
             myAvatarData = null;
+            sentFriendRequests.clear();
+            friends.clear();
             // Xóa tất cả cửa sổ chat
             Object.keys(activeChats).forEach(u => closeChatWindow(u));
             activeChats = {};
@@ -1434,6 +1484,13 @@
                     chatList.classList.remove('show');
                 }
             }
+            // Đóng notification dropdown
+            if (!event.target.closest('.chat-list-btn') && !event.target.closest('.notification-dropdown')) {
+                const notifList = document.getElementById('notification-dropdown');
+                if (notifList && notifList.classList.contains('show')) {
+                    notifList.classList.remove('show');
+                }
+            }
         }
 
         function deleteChat(partnerUsername) {
@@ -1530,6 +1587,42 @@
             stompClient.subscribe('/topic/notifications/' + username, (payload) => {
                 const msg = JSON.parse(payload.body);
                 
+                // Xử lý thông báo kết bạn
+                if (msg.type === 'FRIEND_REQUEST') {
+                    notifications.unshift(msg); // Thêm vào đầu danh sách
+                    notificationCount++;
+                    updateNotificationBadge();
+                    // Nếu dropdown đang mở thì render lại
+                    if (document.getElementById('notification-dropdown').classList.contains('show')) {
+                        renderNotificationList();
+                    }
+                }
+
+                // Xử lý thông báo chấp nhận kết bạn
+                if (msg.type === 'FRIEND_ACCEPT') {
+                    notifications.unshift(msg);
+                    notificationCount++;
+                    updateNotificationBadge();
+                    if (document.getElementById('notification-dropdown').classList.contains('show')) {
+                        renderNotificationList();
+                    }
+                    
+                    // Cập nhật trạng thái bạn bè
+                    friends.add(msg.sender);
+                    sentFriendRequests.delete(msg.sender);
+                    
+                    // Nếu đang mở profile của người này thì cập nhật nút
+                    const profileUsernameEl = document.getElementById('profile-username');
+                    if (profileUsernameEl && profileUsernameEl.textContent === '@' + msg.sender) {
+                        const addFriendBtn = document.getElementById('profile-add-friend-btn');
+                        if (addFriendBtn) {
+                            addFriendBtn.textContent = 'Bạn bè';
+                            addFriendBtn.className = 'profile-btn btn-secondary';
+                            addFriendBtn.onclick = null;
+                        }
+                    }
+                }
+                
                 // Tìm user tương ứng trong danh sách
                 // Nếu là tin nhắn đến: sender là partner
                 // Nếu là READ: sender là partner (người đọc)
@@ -1563,6 +1656,64 @@
                     // Nếu là user mới chưa có trong list -> Tải lại toàn bộ
                     fetchUserList();
                 }
+            });
+        }
+
+        function updateNotificationBadge() {
+            const badge = document.getElementById('notification-badge');
+            if (notificationCount > 0) {
+                badge.textContent = notificationCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // --- QUẢN LÝ THÔNG BÁO ---
+        function toggleNotificationList() {
+            const dropdown = document.getElementById("notification-dropdown");
+            const isShown = dropdown.classList.toggle("show");
+            
+            if (isShown) {
+                renderNotificationList();
+                // Reset badge khi mở
+                notificationCount = 0;
+                updateNotificationBadge();
+            }
+        }
+
+        function renderNotificationList() {
+            const list = document.getElementById('notification-list-items');
+            list.innerHTML = '';
+            
+            if (notifications.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:#65676b;">Không có thông báo nào</div>';
+                return;
+            }
+
+            notifications.forEach(notif => {
+                const item = document.createElement('div');
+                item.className = 'notification-item unread'; // Mặc định là chưa đọc
+                
+                const sender = allUsers.find(u => u.username === notif.sender);
+                const senderName = sender ? (sender.displayName || sender.username) : notif.sender;
+                const avatarUrl = sender ? sender.avatar : null;
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'notif-avatar';
+                setElementAvatar(avatarDiv, senderName, avatarUrl);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'notif-content';
+                contentDiv.innerHTML = `<strong>${senderName}</strong> ${notif.content}`;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'notif-time';
+                timeDiv.textContent = 'Mới';
+                
+                contentDiv.appendChild(timeDiv);
+                item.append(avatarDiv, contentDiv);
+                list.appendChild(item);
             });
         }
 
@@ -1748,6 +1899,11 @@
                 return;
             }
 
+            // Xử lý sự kiện KẾT BẠN (Không vẽ trong chat, chỉ hiện ở thông báo)
+            if (message.type === 'FRIEND_REQUEST' || message.type === 'FRIEND_ACCEPT') {
+                return;
+            }
+
             targets.forEach(target => {
                 const messageArea = target.el;
                 var messageLi = document.createElement('li');
@@ -1776,7 +1932,7 @@
 
             if(message.type === 'JOIN' || message.type === 'LEAVE') {
                 messageLi.classList.add('event-message');
-                messageLi.textContent = message.sender + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
+                messageLi.textContent = getDisplayName(message.sender) + (message.type === 'JOIN' ? " đã tham gia phòng" : " đã rời phòng");
             } else {
                 // Lấy thông tin user để hiển thị avatar
                 const senderUser = allUsers.find(u => u.username === message.sender);
@@ -2981,7 +3137,116 @@
                 startChat(user);
             };
 
+            // Nút Thêm bạn bè
+            const addFriendBtn = document.getElementById('profile-add-friend-btn');
+            
+            // Reset trạng thái mặc định (Loading)
+            addFriendBtn.className = 'profile-btn btn-secondary';
+            addFriendBtn.textContent = '...';
+            addFriendBtn.onclick = null;
+
+            // KIỂM TRA TRẠNG THÁI TỪ SERVER (LỊCH SỬ CHAT)
+            const roomId = [username, user.username].sort().join('_');
+            fetch('/api/messages/' + roomId + '?username=' + username)
+                .then(res => res.json())
+                .then(messages => {
+                    let status = 'NONE';
+                    // Duyệt ngược từ tin nhắn mới nhất để tìm trạng thái hiện tại
+                    for (let i = messages.length - 1; i >= 0; i--) {
+                        const msg = messages[i];
+                        if (msg.type === 'FRIEND_ACCEPT') {
+                            status = 'FRIEND';
+                            break;
+                        }
+                        if (msg.type === 'FRIEND_REQUEST') {
+                            status = (msg.sender === username) ? 'SENT' : 'RECEIVED';
+                            break;
+                        }
+                    }
+
+                    // Cập nhật UI dựa trên trạng thái tìm được
+                    if (status === 'FRIEND') {
+                        addFriendBtn.textContent = 'Bạn bè';
+                        addFriendBtn.className = 'profile-btn btn-secondary';
+                        addFriendBtn.onclick = null;
+                        friends.add(user.username); // Cập nhật lại cache client
+                    } else if (status === 'SENT') {
+                        addFriendBtn.textContent = 'Hủy lời mời';
+                        addFriendBtn.className = 'profile-btn btn-secondary';
+                        addFriendBtn.onclick = () => cancelFriendRequest(user.username);
+                        sentFriendRequests.add(user.username);
+                    } else if (status === 'RECEIVED') {
+                        addFriendBtn.textContent = 'Chấp nhận lời mời kết bạn';
+                        addFriendBtn.className = 'profile-btn btn-primary';
+                        addFriendBtn.onclick = () => acceptFriendRequest(user.username);
+                    } else {
+                        // NONE - Chưa kết bạn
+                        addFriendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Thêm bạn bè';
+                        addFriendBtn.className = 'profile-btn btn-secondary';
+                        addFriendBtn.onclick = () => sendFriendRequest(user.username);
+                    }
+                });
+
             modal.classList.remove('hidden');
+        }
+
+        function sendFriendRequest(targetUsername) {
+            if (stompClient) {
+                // Sử dụng endpoint chat.sendMessage để đảm bảo thông báo đi qua kênh tin nhắn
+                const roomId = [username, targetUsername].sort().join('_');
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                    sender: username,
+                    content: 'đã gửi lời mời kết bạn',
+                    type: 'FRIEND_REQUEST',
+                    roomId: roomId
+                }));
+                
+                sentFriendRequests.add(targetUsername);
+                
+                // Cập nhật nút ngay lập tức
+                const addFriendBtn = document.getElementById('profile-add-friend-btn');
+                if (addFriendBtn) {
+                    addFriendBtn.textContent = 'Hủy lời mời';
+                    addFriendBtn.onclick = () => cancelFriendRequest(targetUsername);
+                }
+            }
+        }
+
+        function cancelFriendRequest(targetUsername) {
+            sentFriendRequests.delete(targetUsername);
+            // Cập nhật lại nút về trạng thái "Thêm bạn bè"
+            const addFriendBtn = document.getElementById('profile-add-friend-btn');
+            if (addFriendBtn) {
+                addFriendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Thêm bạn bè';
+                addFriendBtn.onclick = () => sendFriendRequest(targetUsername);
+            }
+        }
+
+        function acceptFriendRequest(targetUsername) {
+            // Xóa thông báo lời mời khỏi danh sách (giả lập đã xử lý)
+            notifications = notifications.filter(n => !(n.type === 'FRIEND_REQUEST' && n.sender === targetUsername));
+            
+            // Thêm vào danh sách bạn bè
+            friends.add(targetUsername);
+            
+            // Cập nhật nút thành "Bạn bè"
+            const addFriendBtn = document.getElementById('profile-add-friend-btn');
+            if (addFriendBtn) {
+                addFriendBtn.textContent = 'Bạn bè';
+                addFriendBtn.className = 'profile-btn btn-secondary';
+                addFriendBtn.onclick = null; 
+            }
+
+            // Gửi thông báo cho đối phương
+            if (stompClient) {
+                const roomId = [username, targetUsername].sort().join('_');
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                    sender: username,
+                    content: 'đã chấp nhận lời mời kết bạn',
+                    type: 'FRIEND_ACCEPT',
+                    roomId: roomId
+                }));
+            }
         }
 
         function closeUserProfile() {
