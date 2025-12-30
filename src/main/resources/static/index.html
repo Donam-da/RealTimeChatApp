@@ -690,7 +690,7 @@
                 
                 const safePrefix = escapeHtml(prefix);
                 const safeContent = escapeHtml(content);
-                const htmlContent = `${safePrefix}${safeContent} <span style="margin: 0 4px; position: relative; top: -3px; font-weight: bold;">.</span> ${timeStr}`;
+                const htmlContent = `${safePrefix}${safeContent} <span style="margin: 0 4px; position: relative; top: -3px; font-weight: bold;">.</span> <span style="font-weight: 400; color: #65676b;">${timeStr}</span>`;
                 
                 // Reset style mặc định
                 statusEl.style.fontWeight = 'normal';
